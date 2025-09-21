@@ -1,0 +1,391 @@
+:root {
+    --primary: #2c3e50;
+    --secondary: #3498db;
+    --total-color: #3498db;
+    --rh-color: #e74c3c;
+    --lh-color: #27ae60;
+    --rt-color: #9b59b6;
+    --lt-color: #f39c12;
+    --grid-color: #ecf0f1;
+    --text-color: #2c3e50;
+    --card-bg: #ffffff;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: var(--text-color);
+}
+
+.app-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: 15px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.header {
+    background: var(--primary);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 300;
+    margin-bottom: 5px;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+/* Added device status styles */
+.device-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 5px;
+    font-size: 14px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.connected {
+    background: #27ae60;
+}
+
+.disconnected {
+    background: #e74c3c;
+}
+
+.connecting {
+    background: #f39c12;
+}
+
+/* Added device status colors */
+.device-live {
+    background: #27ae60;
+    animation: pulse 1.5s infinite;
+}
+
+.device-stale {
+    background: #f39c12;
+}
+
+.device-offline {
+    background: #e74c3c;
+}
+
+.tare-button {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    padding: 8px 16px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.3s ease;
+}
+
+.tare-button:hover {
+    background: #c0392b;
+}
+
+.tare-button:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+}
+
+.main-content {
+    padding: 20px;
+}
+
+.current-readings {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.reading-card {
+    background: var(--card-bg);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    text-align: center;
+    border-top: 3px solid;
+}
+
+.card-total {
+    border-top-color: var(--total-color);
+}
+
+.card-rh {
+    border-top-color: var(--rh-color);
+}
+
+.card-lh {
+    border-top-color: var(--lh-color);
+}
+
+.card-rt {
+    border-top-color: var(--rt-color);
+}
+
+.card-lt {
+    border-top-color: var(--lt-color);
+}
+
+.card-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #666;
+}
+
+.card-value {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.card-unit {
+    color: #7f8c8d;
+    font-size: 11px;
+}
+
+.chart-container {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.chart-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.chart-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.time-window {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.time-input {
+    width: 60px;
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.chart-wrapper {
+    position: relative;
+    height: 400px;
+    margin-bottom: 15px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 10px;
+    overflow: hidden;
+}
+
+.legend {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 4px 8px;
+    background: var(--grid-color);
+    border-radius: 15px;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+.legend-total {
+    background-color: var(--total-color);
+}
+
+.legend-rh {
+    background-color: var(--rh-color);
+}
+
+.legend-lh {
+    background-color: var(--lh-color);
+}
+
+.legend-rt {
+    background-color: var(--rt-color);
+}
+
+.legend-lt {
+    background-color: var(--lt-color);
+}
+
+.footer {
+    background: var(--grid-color);
+    padding: 15px;
+    text-align: center;
+    color: #7f8c8d;
+    font-size: 12px;
+}
+
+.timestamp {
+    margin-top: 8px;
+    font-size: 11px;
+}
+
+.stats-info {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.tare-status {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #27ae60;
+    font-weight: 500;
+}
+
+.navigation-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.nav-button {
+    padding: 6px 12px;
+    background: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.nav-button:hover {
+    background: #2980b9;
+}
+
+.loading-indicator {
+    text-align: center;
+    margin: 10px 0;
+    color: var(--secondary);
+    font-size: 14px;
+    display: none;
+}
+
+.zoom-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Animation for value updates */
+.value-change {
+    animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* Enhanced pulse animation for live status */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .current-readings {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .current-readings {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .chart-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    .chart-controls {
+        justify-content: center;
+    }
+    .tare-button {
+        position: relative;
+        right: auto;
+        top: auto;
+        margin: 10px auto;
+        display: block;
+    }
+}

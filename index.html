@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Patient Monitoring Dashboard</title>
+
+  <!-- External libraries -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Project CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <h1>Patient Weight Monitoring System</h1>
+      <div class="connection-status">
+        <span class="status-dot connecting" id="status-dot"></span>
+        <span id="status-text">Connecting to database...</span>
+      </div>
+      <!-- Added device status indicator -->
+      <div class="device-status">
+        <span class="status-dot" id="device-status-dot"></span>
+        <span id="device-status-text">Checking device...</span>
+      </div>
+      <button class="tare-button" id="tare-button">TARE SCALES</button>
+    </header>
+
+    <main class="main-content">
+      <div class="current-readings">
+        <div class="reading-card card-total">
+          <div class="card-title">TOTAL WEIGHT</div>
+          <div class="card-value" id="total-value">0.0</div>
+          <div class="card-unit">grams</div>
+        </div>
+        <div class="reading-card card-rh">
+          <div class="card-title">RIGHT HEAD</div>
+          <div class="card-value" id="rh-value">0.0</div>
+          <div class="card-unit">grams</div>
+        </div>
+        <div class="reading-card card-lh">
+          <div class="card-title">LEFT HEAD</div>
+          <div class="card-value" id="lh-value">0.0</div>
+          <div class="card-unit">grams</div>
+        </div>
+        <div class="reading-card card-rt">
+          <div class="card-title">RIGHT TAIL</div>
+          <div class="card-value" id="rt-value">0.0</div>
+          <div class="card-unit">grams</div>
+        </div>
+        <div class="reading-card card-lt">
+          <div class="card-title">LEFT TAIL</div>
+          <div class="card-value" id="lt-value">0.0</div>
+          <div class="card-unit">grams</div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <h2 class="chart-title">Weight Distribution Over Time</h2>
+          <div class="chart-controls">
+            <div class="time-window">
+              <span>Show</span>
+              <input type="number" id="time-window" class="time-input" value="20" min="5" max="1000" />
+              <span>data points</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="loading-indicator" id="loading-indicator">Loading more historical data...</div>
+
+        <div class="chart-wrapper">
+          <canvas id="weight-chart"></canvas>
+        </div>
+
+        <div class="stats-info" id="stats-info">Live mode: Waiting for data...</div>
+
+        <div class="zoom-controls">
+          <button class="nav-button" id="zoom-in-button">Zoom In</button>
+          <button class="nav-button" id="zoom-out-button">Zoom Out</button>
+        </div>
+
+        <div class="navigation-controls">
+          <button class="nav-button" id="live-view-button">Return to Live View</button>
+          <button class="nav-button" id="load-older-button">Load Older Data</button>
+          <button class="nav-button" id="view-newer-button">View Newer Data</button>
+        </div>
+
+        <div class="tare-status" id="tare-status" style="display: none;">
+          Tare command sent successfully!
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><div class="legend-color legend-total"></div><span>Total Weight</span></div>
+          <div class="legend-item"><div class="legend-color legend-rh"></div><span>Right Head</span></div>
+          <div class="legend-item"><div class="legend-color legend-lh"></div><span>Left Head</span></div>
+          <div class="legend-item"><div class="legend-color legend-rt"></div><span>Right Tail</span></div>
+          <div class="legend-item"><div class="legend-color legend-lt"></div><span>Left Tail</span></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Patient Monitoring System • Real-time Data Visualization</p>
+      <div class="timestamp">
+        Last update: <span id="timestamp">-</span> •
+        Data points: <span id="data-points">0</span>
+      </div>
+    </footer>
+  </div>
+
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/chart-config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
