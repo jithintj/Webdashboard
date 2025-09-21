@@ -1,29 +1,20 @@
 // js/classifier.js
-// Sleep position classifier with visual feedback
+// Sleep position classifier with visual feedback - Simplified to 6 positions
 
-// Position to image mapping
+// Position to image mapping - Simplified
 const POSITION_IMAGES = {
-    "Supine Position": "pos_supine.png",
-    "Prone Position": "pos_prone.png",
-    "Left Lateral Position": "pos_left_lateral.png",
-    "Right Lateral Position": "pos_right_lateral.png",
-    "Left Diagonal Supine": "pos_left_diagonal_supine.png",
-    "Right Diagonal Supine": "pos_right_diagonal_supine.png",
-    "Left Diagonal Prone": "pos_left_diagonal_prone.png",
-    "Right Diagonal Prone": "pos_right_diagonal_prone.png",
-    "Semi-Fowler Position": "pos_semi_fowler.png",
-    "Trendelenburg Position": "pos_trendelenburg.png",
-    "Left Fetal Position": "pos_left_fetal.png",
-    "Right Fetal Position": "pos_right_fetal.png",
-    "Patient Moving/Transitioning": "pos_transitioning.png",
-    "Bed Empty or Patient Rising": "pos_empty.png",
-    "Unknown/Transitioning Position": "pos_unknown.png"
+    "Straight Center": "pos_center.png",
+    "Straight Left": "pos_left.png",
+    "Straight Right": "pos_right.png",
+    "Diagonal Left": "pos_diagonal_left.png",
+    "Diagonal Right": "pos_diagonal_right.png",
+    "Empty Bed": "pos_empty.png"
 };
 
 // Position history tracking
 let positionHistory = [];
 const MAX_HISTORY = 20;
-let currentPosition = "Unknown/Transitioning Position";
+let currentPosition = "Empty Bed";
 let currentConfidence = 0;
 let positionChangeTimer = null;
 
@@ -41,7 +32,7 @@ function initClassifier() {
     classificationStatusElement = document.getElementById('classification-status');
     
     // Set initial state
-    updatePositionDisplay("Unknown/Transitioning Position", 0);
+    updatePositionDisplay("Empty Bed", 0);
 }
 
 // Create the classifier UI elements
@@ -59,12 +50,12 @@ function createClassifierUI() {
         
         <div class="position-visualization">
             <div class="position-image-container">
-                <img src="assets/pos_unknown.png" alt="Sleep Position" id="position-image" class="position-image">
+                <img src="assets/pos_empty.png" alt="Sleep Position" id="position-image" class="position-image">
                 <div class="position-confidence" id="position-confidence">0% confidence</div>
             </div>
             
             <div class="position-details">
-                <div class="current-position" id="current-position">Unknown/Transitioning Position</div>
+                <div class="current-position" id="current-position">Empty Bed</div>
                 <div class="position-history">
                     <h3>Recent Positions</h3>
                     <div id="position-history" class="history-timeline"></div>
@@ -77,9 +68,12 @@ function createClassifierUI() {
     chartContainer.parentNode.insertBefore(classificationSection, chartContainer.nextSibling);
 }
 
-// Classify sleep position based on sensor data
+// Classify sleep position based on sensor data - Simplified to 6 positions
 function classifySleepPosition(rh, lh, rt, lt, total) {
-    if (total < 50) return { position: "Bed Empty or Patient Rising", confidence: 95 };
+    // Check if bed is empty
+    if (total < 50) {
+        return { position: "Empty Bed", confidence: 95 };
+    }
     
     // Calculate percentage distribution
     const rhPercent = (rh / total) * 100;
@@ -88,90 +82,62 @@ function classifySleepPosition(rh, lh, rt, lt, total) {
     const ltPercent = (lt / total) * 100;
     
     // Calculate aggregated values
-    const headTotal = rhPercent + lhPercent;
-    const tailTotal = rtPercent + ltPercent;
     const leftTotal = lhPercent + ltPercent;
     const rightTotal = rhPercent + rtPercent;
-    const headDiff = Math.abs(rhPercent - lhPercent);
-    const tailDiff = Math.abs(rtPercent - ltPercent);
-    const headTailRatio = headTotal / tailTotal;
     const leftRightRatio = leftTotal / rightTotal;
     
-    // Check for movement/transition
+    // Calculate balance between head and tail
+    const headTotal = rhPercent + lhPercent;
+    const tailTotal = rtPercent + ltPercent;
+    const headTailBalance = Math.abs(headTotal - tailTotal);
+    
+    // Check for movement/transition (high fluctuation)
     const sensorValues = [rh, lh, rt, lt];
     const maxVal = Math.max(...sensorValues);
     const minVal = Math.min(...sensorValues);
     const fluctuation = (maxVal - minVal) / total * 100;
     
-    if (fluctuation > 40) {
-        return { position: "Patient Moving/Transitioning", confidence: 85 };
+    // If there's too much fluctuation, consider it transitioning
+    if (fluctuation > 50) {
+        // During transition, classify based on dominant side if clear
+        if (leftRightRatio > 2) return { position: "Straight Left", confidence: 40 };
+        if (leftRightRatio < 0.5) return { position: "Straight Right", confidence: 40 };
+        return { position: "Straight Center", confidence: 30 };
     }
     
-    // Classification logic
-    if (headDiff < 20 && tailDiff < 20) {
-        if (headTailRatio > 1.3) {
-            return { position: "Trendelenburg Position", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Trendelenburg Position") };
-        }
-        if (headTailRatio < 0.7) {
-            return { position: "Semi-Fowler Position", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Semi-Fowler Position") };
-        }
-        return { position: "Supine Position", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Supine Position") };
+    // Classification logic for 6 positions
+    
+    // 1. Straight Center - balanced distribution
+    if (leftRightRatio >= 0.7 && leftRightRatio <= 1.43 && headTailBalance < 25) {
+        return { position: "Straight Center", confidence: calculateConfidence(rh, lh, rt, lt, total, "center") };
     }
     
-    if (leftRightRatio > 3) {
-        // Primarily on left side
-        if (headTailRatio > 1.1) {
-            return { position: "Left Lateral Position", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Left Lateral Position") };
-        }
-        if (headTailRatio < 0.9) {
-            return { position: "Left Fetal Position", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Left Fetal Position") };
-        }
-        if (headTailRatio >= 0.9 && headTailRatio <= 1.1) {
-            const position = leftTotal > 80 ? "Left Lateral Position" : "Left Diagonal Supine";
-            return { position, confidence: getPositionConfidence(rh, lh, rt, lt, total, position) };
-        }
+    // 2. Straight Left - primarily on left side
+    if (leftRightRatio > 2.5) {
+        return { position: "Straight Left", confidence: calculateConfidence(rh, lh, rt, lt, total, "left") };
     }
     
-    if (leftRightRatio < 0.33) {
-        // Primarily on right side
-        if (headTailRatio > 1.1) {
-            return { position: "Right Lateral Position", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Right Lateral Position") };
-        }
-        if (headTailRatio < 0.9) {
-            return { position: "Right Fetal Position", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Right Fetal Position") };
-        }
-        if (headTailRatio >= 0.9 && headTailRatio <= 1.1) {
-            const position = rightTotal > 80 ? "Right Lateral Position" : "Right Diagonal Supine";
-            return { position, confidence: getPositionConfidence(rh, lh, rt, lt, total, position) };
-        }
+    // 3. Straight Right - primarily on right side
+    if (leftRightRatio < 0.4) {
+        return { position: "Straight Right", confidence: calculateConfidence(rh, lh, rt, lt, total, "right") };
     }
     
-    if (leftRightRatio > 1.5 && leftRightRatio <= 3) {
-        // Diagonal left
-        if (tailTotal > 55) {
-            return { position: "Left Diagonal Prone", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Left Diagonal Prone") };
-        }
-        return { position: "Left Diagonal Supine", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Left Diagonal Supine") };
+    // 4. Diagonal Left - leaning left but not fully lateral
+    if (leftRightRatio > 1.43 && leftRightRatio <= 2.5) {
+        return { position: "Diagonal Left", confidence: calculateConfidence(rh, lh, rt, lt, total, "diagonal-left") };
     }
     
-    if (leftRightRatio < 0.67 && leftRightRatio >= 0.33) {
-        // Diagonal right
-        if (tailTotal > 55) {
-            return { position: "Right Diagonal Prone", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Right Diagonal Prone") };
-        }
-        return { position: "Right Diagonal Supine", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Right Diagonal Supine") };
+    // 5. Diagonal Right - leaning right but not fully lateral
+    if (leftRightRatio >= 0.4 && leftRightRatio < 0.7) {
+        return { position: "Diagonal Right", confidence: calculateConfidence(rh, lh, rt, lt, total, "diagonal-right") };
     }
     
-    if (tailTotal > 60 && headDiff < 25) {
-        return { position: "Prone Position", confidence: getPositionConfidence(rh, lh, rt, lt, total, "Prone Position") };
-    }
-    
-    // If none of the above match with confidence
-    return { position: "Unknown/Transitioning Position", confidence: 30 };
+    // Default to center if no clear pattern
+    return { position: "Straight Center", confidence: 50 };
 }
 
 // Calculate confidence score for position classification
-function getPositionConfidence(rh, lh, rt, lt, total, position) {
+function calculateConfidence(rh, lh, rt, lt, total, positionType) {
     const rhPercent = (rh / total) * 100;
     const lhPercent = (lh / total) * 100;
     const rtPercent = (rt / total) * 100;
@@ -179,46 +145,25 @@ function getPositionConfidence(rh, lh, rt, lt, total, position) {
     
     let expectedPattern = {};
     
-    // Define expected patterns for each position
-    switch(position) {
-        case "Supine Position":
-            expectedPattern = {lh: 25, rh: 25, lt: 25, rt: 25, tolerance: 10};
+    // Define expected patterns for each position type
+    switch(positionType) {
+        case "center":
+            expectedPattern = {lh: 25, rh: 25, lt: 25, rt: 25, tolerance: 15};
             break;
-        case "Prone Position":
-            expectedPattern = {lh: 20, rh: 20, lt: 30, rt: 30, tolerance: 10};
+        case "left":
+            expectedPattern = {lh: 40, rh: 10, lt: 40, rt: 10, tolerance: 15};
             break;
-        case "Left Lateral Position":
-            expectedPattern = {lh: 40, rh: 10, lt: 40, rt: 10, tolerance: 10};
+        case "right":
+            expectedPattern = {lh: 10, rh: 40, lt: 10, rt: 40, tolerance: 15};
             break;
-        case "Right Lateral Position":
-            expectedPattern = {lh: 10, rh: 40, lt: 10, rt: 40, tolerance: 10};
+        case "diagonal-left":
+            expectedPattern = {lh: 35, rh: 15, lt: 35, rt: 15, tolerance: 18};
             break;
-        case "Left Diagonal Supine":
-            expectedPattern = {lh: 35, rh: 15, lt: 35, rt: 15, tolerance: 10};
-            break;
-        case "Right Diagonal Supine":
-            expectedPattern = {lh: 15, rh: 35, lt: 15, rt: 35, tolerance: 10};
-            break;
-        case "Left Diagonal Prone":
-            expectedPattern = {lh: 30, rh: 15, lt: 40, rt: 15, tolerance: 12};
-            break;
-        case "Right Diagonal Prone":
-            expectedPattern = {lh: 15, rh: 30, lt: 15, rt: 40, tolerance: 12};
-            break;
-        case "Semi-Fowler Position":
-            expectedPattern = {lh: 20, rh: 20, lt: 30, rt: 30, tolerance: 10};
-            break;
-        case "Trendelenburg Position":
-            expectedPattern = {lh: 30, rh: 30, lt: 20, rt: 20, tolerance: 10};
-            break;
-        case "Left Fetal Position":
-            expectedPattern = {lh: 30, rh: 10, lt: 45, rt: 15, tolerance: 15};
-            break;
-        case "Right Fetal Position":
-            expectedPattern = {lh: 10, rh: 30, lt: 15, rt: 45, tolerance: 15};
+        case "diagonal-right":
+            expectedPattern = {lh: 15, rh: 35, lt: 15, rt: 35, tolerance: 18};
             break;
         default:
-            return 0; // Unknown position has 0 confidence
+            return 0;
     }
     
     // Calculate deviation from expected pattern
@@ -230,7 +175,7 @@ function getPositionConfidence(rh, lh, rt, lt, total, position) {
     const avgDev = (lhDev + rhDev + ltDev + rtDev) / 4;
     
     // Convert to confidence score (0-100%)
-    const confidence = Math.max(0, 100 - (avgDev * 100 / expectedPattern.tolerance));
+    const confidence = Math.max(30, 100 - (avgDev * 100 / expectedPattern.tolerance));
     return Math.min(100, Math.round(confidence));
 }
 
@@ -242,7 +187,7 @@ function updatePositionDisplay(position, confidence) {
     
     // Update image
     if (positionImageElement) {
-        const imagePath = `assets/${POSITION_IMAGES[position] || 'pos_unknown.png'}`;
+        const imagePath = `assets/${POSITION_IMAGES[position] || 'pos_empty.png'}`;
         positionImageElement.src = imagePath;
         positionImageElement.alt = position;
     }
@@ -316,15 +261,9 @@ function updatePositionHistoryDisplay() {
         const historyItem = document.createElement('div');
         historyItem.className = 'history-item';
         
-        // Create a simplified position name for display
-        let displayName = entry.position;
-        if (displayName.length > 20) {
-            displayName = displayName.replace('Position', '').trim();
-        }
-        
         historyItem.innerHTML = `
             <span class="history-time">${entry.timestamp}</span>
-            <span class="history-position">${displayName}</span>
+            <span class="history-position">${entry.position}</span>
             <span class="history-confidence">${entry.confidence}%</span>
         `;
         
@@ -361,16 +300,12 @@ function processDataForClassification(data) {
         }
     }
     
-    // Only classify if we have sufficient data
-    if (data.total > 50) {
-        const { position, confidence } = classifySleepPosition(
-            data.rh, data.lh, data.rt, data.lt, data.total
-        );
-        
-        updatePositionDisplay(position, confidence);
-    } else {
-        updatePositionDisplay("Bed Empty or Patient Rising", 95);
-    }
+    // Classify position
+    const { position, confidence } = classifySleepPosition(
+        data.rh, data.lh, data.rt, data.lt, data.total
+    );
+    
+    updatePositionDisplay(position, confidence);
 }
 
 // Initialize when the page loads
