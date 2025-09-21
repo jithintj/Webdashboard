@@ -4,7 +4,7 @@
 // Uses firebase `database` and chart globals defined in firebase-config.js and chart-config.js
 // --------------------
 
-// Add these variables at the top with other global variables
+// Global variables
 let lastDataTimestamp = 0;
 let deviceStatusCheckInterval;
 const DEVICE_TIMEOUT = 10000; // 10 seconds without data = offline
@@ -110,7 +110,6 @@ function processDataPoint(data, key) {
     panOffset = 0;
     updateChartData();
   }
-
 }
 
 function updateChartData() {
@@ -228,14 +227,22 @@ function zoomChart(scaleFactor, centerIndex = null) {
   updateChartData();
 }
 
-// Add this function to monitor device status
+// Monitor device status
 function monitorDeviceStatus() {
   const now = Date.now();
   const timeSinceLastUpdate = now - lastDataTimestamp;
   const deviceStatusDot = document.getElementById('device-status-dot');
   const deviceStatusText = document.getElementById('device-status-text');
   
+  // Remove all status classes
   deviceStatusDot.classList.remove('device-live', 'device-stale', 'device-offline');
+  
+  // If we've never received data (lastDataTimestamp is 0), show as offline
+  if (lastDataTimestamp === 0) {
+    deviceStatusDot.classList.add('device-offline');
+    deviceStatusText.textContent = 'Device offline';
+    return;
+  }
   
   if (timeSinceLastUpdate < 5000) {
     deviceStatusDot.classList.add('device-live');
@@ -250,8 +257,14 @@ function monitorDeviceStatus() {
 }
 
 function initializeDeviceMonitoring() {
-  lastDataTimestamp = Date.now();
-  monitorDeviceStatus();
+  lastDataTimestamp = 0; // Set to 0 to indicate no data received yet
+  // Start with offline status
+  const deviceStatusDot = document.getElementById('device-status-dot');
+  const deviceStatusText = document.getElementById('device-status-text');
+  deviceStatusDot.className = 'status-dot device-offline';
+  deviceStatusText.textContent = 'Device offline';
+  
+  // Start monitoring
   deviceStatusCheckInterval = setInterval(monitorDeviceStatus, 1000);
 }
 
