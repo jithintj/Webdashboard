@@ -83,6 +83,11 @@ function processDataPoint(data, key) {
   const timestamp = data.timestamp || 'Unknown';
   document.getElementById('timestamp').textContent = timestamp;
 
+  // Check if classifier function exists and send data to it
+  if (typeof processDataForClassification === 'function') {
+    processDataForClassification(data);
+  }
+
   const newDataPoint = {
     key,
     timestamp,
@@ -105,6 +110,7 @@ function processDataPoint(data, key) {
     panOffset = 0;
     updateChartData();
   }
+
 }
 
 function updateChartData() {
@@ -113,7 +119,6 @@ function updateChartData() {
     return;
   }
 
-  // Default behavior: show the latest window (chart-config.js manages currentDataWindow, panOffset)
   let start = Math.max(0, allHistoricalData.length - currentDataWindow - panOffset);
   let end = Math.min(allHistoricalData.length, start + currentDataWindow);
   if (end - start < currentDataWindow) start = Math.max(0, end - currentDataWindow);
@@ -230,41 +235,33 @@ function monitorDeviceStatus() {
   const deviceStatusDot = document.getElementById('device-status-dot');
   const deviceStatusText = document.getElementById('device-status-text');
   
-  // Clear existing classes
   deviceStatusDot.classList.remove('device-live', 'device-stale', 'device-offline');
   
-  if (timeSinceLastUpdate < 5000) { // Updated in last 5 seconds
+  if (timeSinceLastUpdate < 5000) {
     deviceStatusDot.classList.add('device-live');
     deviceStatusText.textContent = 'Device online';
-  } else if (timeSinceLastUpdate < DEVICE_TIMEOUT) { // Updated in last 10 seconds
+  } else if (timeSinceLastUpdate < DEVICE_TIMEOUT) {
     deviceStatusDot.classList.add('device-stale');
     deviceStatusText.textContent = 'Device stale';
-  } else { // No data for more than 10 seconds
+  } else {
     deviceStatusDot.classList.add('device-offline');
     deviceStatusText.textContent = 'Device offline';
   }
 }
 
-// Initialize device status monitoring when the app loads
 function initializeDeviceMonitoring() {
-  // Set initial status
   lastDataTimestamp = Date.now();
   monitorDeviceStatus();
-  
-  // Check status every second
   deviceStatusCheckInterval = setInterval(monitorDeviceStatus, 1000);
 }
 
-// ========== TARE COMMAND (copied/ported from your working monitor.html) ==========
 function sendTareCommand() {
   const tareButton = document.getElementById('tare-button');
   const tareStatus = document.getElementById('tare-status');
 
-  // Disable button to prevent repeated commands
   tareButton.disabled = true;
   tareButton.textContent = "TARING...";
 
-  // Create a timestamp and send command object to RTDB
   const ts = Date.now();
   database.ref('commands/tare').set({
     command: "TARE",
@@ -272,23 +269,18 @@ function sendTareCommand() {
     timestamp: ts
   })
   .then(() => {
-    // Indicate pending state to user
     tareStatus.textContent = 'Tare command sent! Waiting for completion...';
     tareStatus.style.display = 'block';
-    tareStatus.style.color = '#3498db'; // blue-ish pending
+    tareStatus.style.color = '#3498db';
 
-    // Listen for tare completion on commands/tare/status
     const tareStatusRef = database.ref('commands/tare/status');
     const listener = tareStatusRef.on('value', (snapshot) => {
       if (snapshot.val() === 'completed') {
-        // Success — update UI
         tareStatus.textContent = 'Tare completed successfully!';
         tareStatus.style.color = '#27ae60';
 
-        // Remove listener
         tareStatusRef.off('value', listener);
 
-        // Reset button after a short delay
         setTimeout(() => {
           tareButton.disabled = false;
           tareButton.textContent = "TARE SCALES";
@@ -297,13 +289,10 @@ function sendTareCommand() {
       }
     });
 
-    // Timeout fallback (15s) — stop waiting and notify user
     setTimeout(() => {
       try {
         tareStatusRef.off('value', listener);
-      } catch (e) {
-        // ignore off() errors
-      }
+      } catch (e) {}
       if (tareButton.disabled) {
         tareStatus.textContent = 'Tare timeout! Please check device connection.';
         tareStatus.style.color = '#e74c3c';
@@ -323,7 +312,6 @@ function sendTareCommand() {
     setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
   });
 }
-// ==============================================================================
 
 // --------------------
 // Event wiring
@@ -333,10 +321,8 @@ window.onload = function () {
 
   const chartCanvas = document.getElementById('weight-chart');
 
-  // Wheel zoom
   chartCanvas.addEventListener('wheel', handleChartScroll);
 
-  // Drag panning
   chartCanvas.addEventListener('mousedown', (e) => {
     isDragging = true;
     dragStartX = e.clientX;
@@ -356,7 +342,6 @@ window.onload = function () {
   chartCanvas.addEventListener('mouseup', () => { isDragging = false; chartCanvas.style.cursor = 'default'; });
   chartCanvas.addEventListener('mouseleave', () => { isDragging = false; chartCanvas.style.cursor = 'default'; });
 
-  // Time window input
   document.getElementById('time-window').addEventListener('input', function () {
     currentDataWindow = parseInt(this.value) || 20;
     panOffset = 0;
@@ -365,24 +350,18 @@ window.onload = function () {
     updateChartData();
   });
 
-  // Navigation & zoom buttons
   document.getElementById('live-view-button').addEventListener('click', resetToLiveView);
   document.getElementById('load-older-button').addEventListener('click', () => { isAutoScroll = false; loadOlderData(); });
   document.getElementById('view-newer-button').addEventListener('click', () => { isAutoScroll = false; panOffset = Math.max(0, panOffset - currentDataWindow); updateChartData(); });
   document.getElementById('zoom-in-button').addEventListener('click', () => zoomChart(0.8));
   document.getElementById('zoom-out-button').addEventListener('click', () => zoomChart(1.2));
 
-  // Tare button listener (uses the exact working flow from your monitor.html)
   document.getElementById('tare-button').addEventListener('click', sendTareCommand);
 
-  // Start device status monitoring
   initializeDeviceMonitoring();
-
-  // Start listening to data
   setupDataListening();
 };
 
-// Clean up interval when page is unloaded
 window.addEventListener('beforeunload', function() {
   if (deviceStatusCheckInterval) {
     clearInterval(deviceStatusCheckInterval);
