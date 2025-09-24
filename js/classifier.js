@@ -1,7 +1,7 @@
 // js/classifier.js
-// Sleep position classifier with visual feedback - Simplified to 6 positions
+// Sleep position classifier with visual feedback - Improved classification logic
 
-// Position to image mapping - Simplified
+// Position to image mapping
 const POSITION_IMAGES = {
     "Straight Center": "pos_center.png",
     "Straight Left": "pos_left.png",
@@ -60,6 +60,7 @@ function createClassifierUI() {
             
             <div class="position-details">
                 <div class="current-position" id="current-position">Empty Bed</div>
+                <div class="position-debug" id="position-debug"></div>
                 <div class="position-history">
                     <h3>Recent Positions</h3>
                     <div id="position-history" class="history-timeline"></div>
@@ -88,11 +89,11 @@ function isDeviceOnline() {
     return deviceStatusDot.classList.contains('device-live');
 }
 
-// Classify sleep position based on sensor data - Simplified to 6 positions
+// Improved sleep position classification with better logic
 function classifySleepPosition(rh, lh, rt, lt, total) {
     // Check if bed is empty
     if (total < 500) {
-        return { position: "Empty Bed", confidence: 95 };
+        return { position: "Empty Bed", confidence: 95, debug: "Total pressure too low" };
     }
     
     // Calculate percentage distribution
@@ -105,11 +106,21 @@ function classifySleepPosition(rh, lh, rt, lt, total) {
     const leftTotal = lhPercent + ltPercent;
     const rightTotal = rhPercent + rtPercent;
     const leftRightRatio = leftTotal / rightTotal;
+    const leftRightDiff = Math.abs(leftTotal - rightTotal);
     
-    // Calculate balance between head and tail
+    // Calculate head vs tail distribution
     const headTotal = rhPercent + lhPercent;
     const tailTotal = rtPercent + ltPercent;
-    const headTailBalance = Math.abs(headTotal - tailTotal);
+    const headTailRatio = headTotal / tailTotal;
+    const headTailDiff = Math.abs(headTotal - tailTotal);
+    
+    // Calculate cross-diagonal patterns
+    const leftHeadRightTail = lhPercent + rtPercent; // LH + RT
+    const rightHeadLeftTail = rhPercent + ltPercent; // RH + LT
+    const diagonalDiff = Math.abs(leftHeadRightTail - rightHeadLeftTail);
+    
+    // Debug information
+    let debugInfo = `L/R: ${leftRightRatio.toFixed(2)}, H/T: ${headTailRatio.toFixed(2)}, LR-Diff: ${leftRightDiff.toFixed(1)}%`;
     
     // Check for movement/transition (high fluctuation)
     const sensorValues = [rh, lh, rt, lt];
@@ -117,47 +128,125 @@ function classifySleepPosition(rh, lh, rt, lt, total) {
     const minVal = Math.min(...sensorValues);
     const fluctuation = (maxVal - minVal) / total * 100;
     
-    // If there's too much fluctuation, consider it transitioning
-    if (fluctuation > 50) {
-        // During transition, classify based on dominant side if clear
-        if (leftRightRatio > 2) return { position: "Straight Left", confidence: 40 };
-        if (leftRightRatio < 0.5) return { position: "Straight Right", confidence: 40 };
-        return { position: "Straight Center", confidence: 30 };
+    // Improved classification logic with more nuanced thresholds
+    
+    // 1. Empty bed check (already done above)
+    
+    // 2. Strong left side preference (Straight Left)
+    if (leftRightRatio > 2.0 && leftRightDiff > 30) {
+        return { 
+            position: "Straight Left", 
+            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "left"),
+            debug: debugInfo + ", Strong left bias"
+        };
     }
     
-    // Classification logic for 6 positions
-    
-    // 1. Straight Center - balanced distribution
-    if (leftRightRatio >= 0.7 && leftRightRatio <= 1.43 && headTailBalance < 25) {
-        return { position: "Straight Center", confidence: calculateConfidence(rh, lh, rt, lt, total, "center") };
+    // 3. Strong right side preference (Straight Right)  
+    if (leftRightRatio < 0.5 && leftRightDiff > 30) {
+        return { 
+            position: "Straight Right", 
+            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "right"),
+            debug: debugInfo + ", Strong right bias"
+        };
     }
     
-    // 2. Straight Left - primarily on left side
-    if (leftRightRatio > 2.5) {
-        return { position: "Straight Left", confidence: calculateConfidence(rh, lh, rt, lt, total, "left") };
+    // 4. Check for diagonal patterns using head sensor dominance
+    const headSensorDominance = Math.abs(rhPercent - lhPercent);
+    const isHeadDominant = headTotal > tailTotal + 10; // Head sensors have 10%+ more pressure
+    
+    // Diagonal Right - Right head sensor is significantly higher than left head
+    if (rhPercent > lhPercent + 8 && headSensorDominance > 8 && leftRightRatio >= 0.6 && leftRightRatio <= 1.4) {
+        return { 
+            position: "Diagonal Right", 
+            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "diagonal-right"),
+            debug: debugInfo + `, RH dominant: ${rhPercent.toFixed(1)}% vs LH: ${lhPercent.toFixed(1)}%`
+        };
     }
     
-    // 3. Straight Right - primarily on right side
-    if (leftRightRatio < 0.4) {
-        return { position: "Straight Right", confidence: calculateConfidence(rh, lh, rt, lt, total, "right") };
+    // Diagonal Left - Left head sensor is significantly higher than right head  
+    if (lhPercent > rhPercent + 8 && headSensorDominance > 8 && leftRightRatio >= 0.7 && leftRightRatio <= 1.67) {
+        return { 
+            position: "Diagonal Left", 
+            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "diagonal-left"),
+            debug: debugInfo + `, LH dominant: ${lhPercent.toFixed(1)}% vs RH: ${rhPercent.toFixed(1)}%`
+        };
     }
     
-    // 4. Diagonal Left - leaning left but not fully lateral
-    if (leftRightRatio > 1.43 && leftRightRatio <= 2.5) {
-        return { position: "Diagonal Left", confidence: calculateConfidence(rh, lh, rt, lt, total, "diagonal-left") };
+    // 5. Moderate left preference (could be diagonal left or straight left)
+    if (leftRightRatio > 1.2 && leftRightRatio <= 2.0) {
+        // If head sensors show imbalance, it's diagonal
+        if (headSensorDominance > 5) {
+            const position = lhPercent > rhPercent ? "Diagonal Left" : "Diagonal Right";
+            return { 
+                position, 
+                confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, position.toLowerCase().replace(" ", "-")),
+                debug: debugInfo + ", Moderate left + head imbalance"
+            };
+        } else {
+            return { 
+                position: "Straight Left", 
+                confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "left"),
+                debug: debugInfo + ", Moderate left preference"
+            };
+        }
     }
     
-    // 5. Diagonal Right - leaning right but not fully lateral
-    if (leftRightRatio >= 0.4 && leftRightRatio < 0.7) {
-        return { position: "Diagonal Right", confidence: calculateConfidence(rh, lh, rt, lt, total, "diagonal-right") };
+    // 6. Moderate right preference  
+    if (leftRightRatio < 0.8 && leftRightRatio >= 0.5) {
+        // If head sensors show imbalance, it's diagonal
+        if (headSensorDominance > 5) {
+            const position = rhPercent > lhPercent ? "Diagonal Right" : "Diagonal Left";
+            return { 
+                position, 
+                confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, position.toLowerCase().replace(" ", "-")),
+                debug: debugInfo + ", Moderate right + head imbalance"
+            };
+        } else {
+            return { 
+                position: "Straight Right", 
+                confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "right"),
+                debug: debugInfo + ", Moderate right preference"
+            };
+        }
     }
     
-    // Default to center if no clear pattern
-    return { position: "Straight Center", confidence: 50 };
+    // 7. Balanced distribution - check for subtle diagonal patterns
+    if (leftRightRatio >= 0.8 && leftRightRatio <= 1.2) {
+        // Even with balanced left/right, check head sensor imbalance for diagonal detection
+        if (headSensorDominance > 6) {
+            if (rhPercent > lhPercent) {
+                return { 
+                    position: "Diagonal Right", 
+                    confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "diagonal-right"),
+                    debug: debugInfo + ", Balanced L/R but RH > LH"
+                };
+            } else {
+                return { 
+                    position: "Diagonal Left", 
+                    confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "diagonal-left"),
+                    debug: debugInfo + ", Balanced L/R but LH > RH"
+                };
+            }
+        }
+        
+        // True center position - all sensors relatively balanced
+        return { 
+            position: "Straight Center", 
+            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "center"),
+            debug: debugInfo + ", Balanced distribution"
+        };
+    }
+    
+    // Default fallback
+    return { 
+        position: "Straight Center", 
+        confidence: 40, 
+        debug: debugInfo + ", Default fallback"
+    };
 }
 
-// Calculate confidence score for position classification
-function calculateConfidence(rh, lh, rt, lt, total, positionType) {
+// Improved confidence calculation
+function calculateImprovedConfidence(rh, lh, rt, lt, total, positionType) {
     const rhPercent = (rh / total) * 100;
     const lhPercent = (lh / total) * 100;
     const rtPercent = (rt / total) * 100;
@@ -165,22 +254,24 @@ function calculateConfidence(rh, lh, rt, lt, total, positionType) {
     
     let expectedPattern = {};
     
-    // Define expected patterns for each position type
+    // Define expected patterns for each position type with more realistic expectations
     switch(positionType) {
         case "center":
-            expectedPattern = {lh: 25, rh: 25, lt: 25, rt: 25, tolerance: 15};
+            expectedPattern = {lh: 25, rh: 25, lt: 25, rt: 25, tolerance: 12};
             break;
         case "left":
-            expectedPattern = {lh: 40, rh: 10, lt: 40, rt: 10, tolerance: 15};
+            expectedPattern = {lh: 35, rh: 15, lt: 35, rt: 15, tolerance: 15};
             break;
         case "right":
-            expectedPattern = {lh: 10, rh: 40, lt: 10, rt: 40, tolerance: 15};
+            expectedPattern = {lh: 15, rh: 35, lt: 15, rt: 35, tolerance: 15};
             break;
         case "diagonal-left":
-            expectedPattern = {lh: 35, rh: 15, lt: 35, rt: 15, tolerance: 18};
+            // Expecting higher left head, moderate left tail, lower right values
+            expectedPattern = {lh: 32, rh: 18, lt: 28, rt: 22, tolerance: 18};
             break;
         case "diagonal-right":
-            expectedPattern = {lh: 15, rh: 35, lt: 15, rt: 35, tolerance: 18};
+            // Expecting higher right head, moderate right tail, lower left values  
+            expectedPattern = {lh: 18, rh: 32, lt: 22, rt: 28, tolerance: 18};
             break;
         default:
             return 0;
@@ -194,13 +285,20 @@ function calculateConfidence(rh, lh, rt, lt, total, positionType) {
     
     const avgDev = (lhDev + rhDev + ltDev + rtDev) / 4;
     
-    // Convert to confidence score (0-100%)
-    const confidence = Math.max(30, 100 - (avgDev * 100 / expectedPattern.tolerance));
-    return Math.min(100, Math.round(confidence));
+    // Convert to confidence score (30-100%)
+    const baseConfidence = Math.max(30, 100 - (avgDev * 100 / expectedPattern.tolerance));
+    
+    // Bonus confidence for clear patterns
+    if (positionType.includes("diagonal")) {
+        const headImbalance = Math.abs(rhPercent - lhPercent);
+        if (headImbalance > 10) baseConfidence += 10; // Bonus for clear head imbalance
+    }
+    
+    return Math.min(100, Math.round(baseConfidence));
 }
 
-// Update position display based on classification
-function updatePositionDisplay(position, confidence) {
+// Update position display with debug information
+function updatePositionDisplay(position, confidence, debug = "") {
     // Update current position and confidence
     currentPosition = position;
     currentConfidence = confidence;
@@ -231,6 +329,15 @@ function updatePositionDisplay(position, confidence) {
     const currentPositionElement = document.getElementById('current-position');
     if (currentPositionElement) {
         currentPositionElement.textContent = position;
+    }
+    
+    // Update debug information
+    const debugElement = document.getElementById('position-debug');
+    if (debugElement && debug) {
+        debugElement.textContent = debug;
+        debugElement.style.fontSize = '0.8em';
+        debugElement.style.color = '#7f8c8d';
+        debugElement.style.marginTop = '5px';
     }
     
     // Add to history if position changed significantly
@@ -300,7 +407,7 @@ function updatePositionHistoryDisplay() {
     });
 }
 
-// Process new data for classification - Modified to check device status
+// Process new data for classification
 function processDataForClassification(data) {
     if (!data) return;
     
@@ -308,7 +415,7 @@ function processDataForClassification(data) {
     if (!isDeviceOnline()) {
         // Hide the entire classification section
         toggleClassificationSection(false);
-        return; // Exit early if device is not online
+        return;
     }
     
     // Show the classification section if device is online
@@ -317,7 +424,7 @@ function processDataForClassification(data) {
     // Check if device is online (receiving live data)
     const now = Date.now();
     const timeSinceLastUpdate = now - lastDataTimestamp;
-    const isLive = timeSinceLastUpdate < 15000; // 15 seconds threshold for "live"
+    const isLive = timeSinceLastUpdate < 15000;
     
     // Update classification status
     if (classificationStatusElement) {
@@ -330,12 +437,12 @@ function processDataForClassification(data) {
         }
     }
     
-    // Classify position
-    const { position, confidence } = classifySleepPosition(
+    // Classify position with improved algorithm
+    const { position, confidence, debug } = classifySleepPosition(
         data.rh, data.lh, data.rt, data.lt, data.total
     );
     
-    updatePositionDisplay(position, confidence);
+    updatePositionDisplay(position, confidence, debug);
 }
 
 // Initialize when the page loads
