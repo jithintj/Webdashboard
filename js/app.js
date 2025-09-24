@@ -1,14 +1,22 @@
 // --------------------
-// js/app.js
+// js/app.js - OPTIMIZED
 // Handles real-time data, UI updates, zoom/pan, and controls
-// Uses firebase `database` and chart globals defined in firebase-config.js and chart-config.js
+// Reduced redundancy in device monitoring and data processing
 // --------------------
 
 // Global variables
 let lastDataTimestamp = 0;
 let deviceStatusCheckInterval;
-const DEVICE_TIMEOUT = 10000; // 10 seconds without data = offline
-let deviceStatusStartupComplete = false; // New flag to track startup completion
+const DEVICE_TIMEOUT = 10000;
+let deviceStatusStartupComplete = false;
+
+// Consolidated device status management
+const DeviceStatus = {
+    UNKNOWN: 'unknown',
+    LIVE: 'live',
+    STALE: 'stale',
+    OFFLINE: 'offline'
+};
 
 function setupDataListening() {
     const statusDot = document.getElementById('status-dot');
@@ -40,77 +48,86 @@ function loadHistoricalData() {
             allHistoricalData = [];
             snapshot.forEach((childSnapshot) => {
                 const data = childSnapshot.val();
-                allHistoricalData.push({
-                    key: childSnapshot.key,
-                    timestamp: data.timestamp,
-                    rh: data.rh || 0,
-                    lh: data.lh || 0,
-                    rt: data.rt || 0,
-                    lt: data.lt || 0,
-                    total: data.total || 0
-                });
+                allHistoricalData.push(createDataPoint(childSnapshot.key, data));
             });
             allHistoricalData.sort((a, b) => a.key.localeCompare(b.key));
-            document.getElementById('data-points').textContent = allHistoricalData.length;
+            updateDataPointsCount();
             updateChartData();
         })
-        .catch((error) => {
-            console.error("Error loading historical data:", error);
-            document.getElementById('stats-info').textContent = 'Error loading data: ' + error.message;
-        });
+        .catch(handleDataError);
 }
 
-function processDataPoint(data, key) {
-    if (!data) return;
-    
-    // Update the last data timestamp
-    lastDataTimestamp = Date.now();
-
-    const updateValue = (id, value) => {
-        if (value !== undefined) {
-            const el = document.getElementById(id);
-            el.textContent = value.toFixed(1);
-            el.classList.add('value-change');
-            setTimeout(() => el.classList.remove('value-change'), 300);
-        }
-    };
-
-    updateValue('rh-value', data.rh);
-    updateValue('lh-value', data.lh);
-    updateValue('rt-value', data.rt);
-    updateValue('lt-value', data.lt);
-    updateValue('total-value', data.total);
-
-    const timestamp = data.timestamp || 'Unknown';
-    document.getElementById('timestamp').textContent = timestamp;
-
-    // Check if classifier function exists and send data to it
-    if (typeof processDataForClassification === 'function') {
-        processDataForClassification(data);
-    }
-
-    const newDataPoint = {
-        key,
-        timestamp,
+// Consolidated data point creation
+function createDataPoint(key, data) {
+    return {
+        key: key,
+        timestamp: data.timestamp || 'Unknown',
         rh: data.rh || 0,
         lh: data.lh || 0,
         rt: data.rt || 0,
         lt: data.lt || 0,
         total: data.total || 0
     };
-    allHistoricalData.push(newDataPoint);
-    allHistoricalData.sort((a, b) => a.key.localeCompare(b.key));
+}
 
+function processDataPoint(data, key) {
+    if (!data) return;
+    
+    // Update the last data timestamp for device monitoring
+    lastDataTimestamp = Date.now();
+
+    // Update UI values
+    updateSensorValues(data);
+    
+    // Update timestamp
+    const timestamp = data.timestamp || 'Unknown';
+    document.getElementById('timestamp').textContent = timestamp;
+
+    // Send to classifier if available
+    if (typeof processDataForClassification === 'function') {
+        processDataForClassification(data);
+    }
+
+    // Add to historical data
+    const newDataPoint = createDataPoint(key, data);
+    allHistoricalData.push(newDataPoint);
+    
+    // Maintain data limit and sort
     if (allHistoricalData.length > 1000) {
         allHistoricalData = allHistoricalData.slice(-1000);
     }
+    allHistoricalData.sort((a, b) => a.key.localeCompare(b.key));
 
-    document.getElementById('data-points').textContent = allHistoricalData.length;
+    updateDataPointsCount();
 
     if (isAutoScroll) {
         panOffset = 0;
         updateChartData();
     }
+}
+
+// Consolidated UI value updates
+function updateSensorValues(data) {
+    const sensors = [
+        { id: 'rh-value', value: data.rh },
+        { id: 'lh-value', value: data.lh },
+        { id: 'rt-value', value: data.rt },
+        { id: 'lt-value', value: data.lt },
+        { id: 'total-value', value: data.total }
+    ];
+
+    sensors.forEach(sensor => {
+        if (sensor.value !== undefined) {
+            const element = document.getElementById(sensor.id);
+            element.textContent = sensor.value.toFixed(1);
+            element.classList.add('value-change');
+            setTimeout(() => element.classList.remove('value-change'), 300);
+        }
+    });
+}
+
+function updateDataPointsCount() {
+    document.getElementById('data-points').textContent = allHistoricalData.length;
 }
 
 function updateChartData() {
@@ -119,24 +136,43 @@ function updateChartData() {
         return;
     }
 
+    const displayData = getDisplayData();
+    document.getElementById('stats-info').textContent =
+        `Showing ${displayData.length} data points ${isAutoScroll ? '(Live)' : '(Historical)'} | Zoom: ${zoomLevel.toFixed(1)}x`;
+
+    updateChartDataset(displayData);
+    updateChartYAxis(displayData);
+    weightChart.update('none');
+}
+
+function getDisplayData() {
     let start = Math.max(0, allHistoricalData.length - currentDataWindow - panOffset);
     let end = Math.min(allHistoricalData.length, start + currentDataWindow);
-    if (end - start < currentDataWindow) start = Math.max(0, end - currentDataWindow);
+    if (end - start < currentDataWindow) {
+        start = Math.max(0, end - currentDataWindow);
+    }
+    return allHistoricalData.slice(start, end);
+}
 
-    const displayData = allHistoricalData.slice(start, end);
-    document.getElementById('stats-info').textContent =
-        `Showing ${displayData.length} data points (${start}-${end}) ${isAutoScroll ? '(Live)' : '(Historical)'} | Zoom: ${zoomLevel.toFixed(1)}x`;
-
+function updateChartDataset(displayData) {
     weightChart.data.labels = displayData.map(item => item.timestamp);
-    weightChart.data.datasets[0].data = displayData.map(item => item.total);
-    weightChart.data.datasets[1].data = displayData.map(item => item.rh);
-    weightChart.data.datasets[2].data = displayData.map(item => item.lh);
-    weightChart.data.datasets[3].data = displayData.map(item => item.rt);
-    weightChart.data.datasets[4].data = displayData.map(item => item.lt);
+    
+    const datasets = [
+        { index: 0, key: 'total' },
+        { index: 1, key: 'rh' },
+        { index: 2, key: 'lh' },
+        { index: 3, key: 'rt' },
+        { index: 4, key: 'lt' }
+    ];
 
+    datasets.forEach(dataset => {
+        weightChart.data.datasets[dataset.index].data = displayData.map(item => item[dataset.key]);
+    });
+}
+
+function updateChartYAxis(displayData) {
     const allValues = displayData.flatMap(item => [item.total, item.rh, item.lh, item.rt, item.lt]);
     weightChart.options.scales.y.suggestedMax = Math.max(...allValues, 10) * 1.1;
-    weightChart.update('none');
 }
 
 function resetToLiveView() {
@@ -165,21 +201,12 @@ function loadOlderData() {
         .then((snapshot) => {
             const newData = [];
             snapshot.forEach((childSnapshot) => {
-                const data = childSnapshot.val();
-                newData.push({
-                    key: childSnapshot.key,
-                    timestamp: data.timestamp,
-                    rh: data.rh || 0,
-                    lh: data.lh || 0,
-                    rt: data.rt || 0,
-                    lt: data.lt || 0,
-                    total: data.total || 0
-                });
+                newData.push(createDataPoint(childSnapshot.key, childSnapshot.val()));
             });
 
             if (newData.length > 0) {
                 allHistoricalData = newData.concat(allHistoricalData);
-                document.getElementById('data-points').textContent = allHistoricalData.length;
+                updateDataPointsCount();
                 panOffset = allHistoricalData.length - newData.length;
                 updateChartData();
             }
@@ -188,7 +215,7 @@ function loadOlderData() {
             document.getElementById('loading-indicator').style.display = 'none';
         })
         .catch((error) => {
-            console.error("Error loading older data:", error);
+            handleDataError(error);
             isLoadingMoreData = false;
             document.getElementById('loading-indicator').style.display = 'none';
         });
@@ -208,8 +235,7 @@ function handleChartScroll(event) {
     }
 
     const delta = Math.sign(event.deltaY);
-    if (delta > 0) zoomChart(0.9, zoomCenterIndex);
-    else zoomChart(1.1, zoomCenterIndex);
+    zoomChart(delta > 0 ? 0.9 : 1.1, zoomCenterIndex);
 }
 
 function zoomChart(scaleFactor, centerIndex = null) {
@@ -228,58 +254,70 @@ function zoomChart(scaleFactor, centerIndex = null) {
     updateChartData();
 }
 
-// Monitor device status - Modified to wait for startup confirmation
+// Consolidated device status monitoring
+function getDeviceStatus() {
+    if (!deviceStatusStartupComplete) {
+        return DeviceStatus.UNKNOWN;
+    }
+    
+    if (lastDataTimestamp === 0) {
+        return DeviceStatus.OFFLINE;
+    }
+    
+    const timeSinceLastUpdate = Date.now() - lastDataTimestamp;
+    
+    if (timeSinceLastUpdate < 5000) {
+        return DeviceStatus.LIVE;
+    } else if (timeSinceLastUpdate < DEVICE_TIMEOUT) {
+        return DeviceStatus.STALE;
+    } else {
+        return DeviceStatus.OFFLINE;
+    }
+}
+
 function monitorDeviceStatus() {
-    const now = Date.now();
-    const timeSinceLastUpdate = now - lastDataTimestamp;
     const deviceStatusDot = document.getElementById('device-status-dot');
     const deviceStatusText = document.getElementById('device-status-text');
     
     // Remove all status classes
     deviceStatusDot.classList.remove('device-live', 'device-stale', 'device-offline');
     
-    // If startup period hasn't completed yet, keep showing offline
-    if (!deviceStatusStartupComplete) {
-        deviceStatusDot.classList.add('device-offline');
-        deviceStatusText.textContent = 'Device offline';
-        return;
-    }
+    const status = getDeviceStatus();
     
-    // If we've never received data (lastDataTimestamp is 0), show as offline
-    if (lastDataTimestamp === 0) {
-        deviceStatusDot.classList.add('device-offline');
-        deviceStatusText.textContent = 'Device offline';
-        return;
-    }
-    
-    if (timeSinceLastUpdate < 5000) {
-        deviceStatusDot.classList.add('device-live');
-        deviceStatusText.textContent = 'Device online';
-    } else if (timeSinceLastUpdate < DEVICE_TIMEOUT) {
-        deviceStatusDot.classList.add('device-stale');
-        deviceStatusText.textContent = 'Device stale';
-    } else {
-        deviceStatusDot.classList.add('device-offline');
-        deviceStatusText.textContent = 'Device offline';
+    switch(status) {
+        case DeviceStatus.LIVE:
+            deviceStatusDot.classList.add('device-live');
+            deviceStatusText.textContent = 'Device online';
+            break;
+        case DeviceStatus.STALE:
+            deviceStatusDot.classList.add('device-stale');
+            deviceStatusText.textContent = 'Device stale';
+            break;
+        case DeviceStatus.OFFLINE:
+            deviceStatusDot.classList.add('device-offline');
+            deviceStatusText.textContent = 'Device offline';
+            break;
+        case DeviceStatus.UNKNOWN:
+        default:
+            deviceStatusDot.classList.add('device-offline');
+            deviceStatusText.textContent = 'Device offline';
+            break;
     }
 }
 
 function initializeDeviceMonitoring() {
-    lastDataTimestamp = 0; // Set to 0 to indicate no data received yet
-    deviceStatusStartupComplete = false; // Initialize startup flag
+    lastDataTimestamp = 0;
+    deviceStatusStartupComplete = false;
     
-    // Start with offline status
     const deviceStatusDot = document.getElementById('device-status-dot');
     const deviceStatusText = document.getElementById('device-status-text');
     deviceStatusDot.className = 'status-dot device-offline';
     deviceStatusText.textContent = 'Device offline';
     
-    // Wait for timeout period before allowing status updates
     setTimeout(() => {
         deviceStatusStartupComplete = true;
     }, DEVICE_TIMEOUT);
     
-    // Start monitoring
     deviceStatusCheckInterval = setInterval(monitorDeviceStatus, 1000);
 }
 
@@ -304,16 +342,7 @@ function sendTareCommand() {
         const tareStatusRef = database.ref('commands/tare/status');
         const listener = tareStatusRef.on('value', (snapshot) => {
             if (snapshot.val() === 'completed') {
-                tareStatus.textContent = 'Tare completed successfully!';
-                tareStatus.style.color = '#27ae60';
-
-                tareStatusRef.off('value', listener);
-
-                setTimeout(() => {
-                    tareButton.disabled = false;
-                    tareButton.textContent = "TARE SCALES";
-                    tareStatus.style.display = 'none';
-                }, 3000);
+                handleTareCompletion(tareButton, tareStatus, listener);
             }
         });
 
@@ -322,23 +351,51 @@ function sendTareCommand() {
                 tareStatusRef.off('value', listener);
             } catch (e) {}
             if (tareButton.disabled) {
-                tareStatus.textContent = 'Tare timeout! Please check device connection.';
-                tareStatus.style.color = '#e74c3c';
-                tareButton.disabled = false;
-                tareButton.textContent = 'TARE SCALES';
-                setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
+                handleTareTimeout(tareButton, tareStatus);
             }
         }, 15000);
     })
     .catch((error) => {
-        console.error('Error sending tare command:', error);
-        tareStatus.textContent = 'Error sending tare command!';
-        tareStatus.style.color = '#e74c3c';
-        tareStatus.style.display = 'block';
-        tareButton.disabled = false;
-        tareButton.textContent = 'TARE SCALES';
-        setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
+        handleTareError(error, tareButton, tareStatus);
     });
+}
+
+function handleTareCompletion(tareButton, tareStatus, listener) {
+    tareStatus.textContent = 'Tare completed successfully!';
+    tareStatus.style.color = '#27ae60';
+    
+    if (listener) {
+        database.ref('commands/tare/status').off('value', listener);
+    }
+    
+    setTimeout(() => {
+        tareButton.disabled = false;
+        tareButton.textContent = "TARE SCALES";
+        tareStatus.style.display = 'none';
+    }, 3000);
+}
+
+function handleTareTimeout(tareButton, tareStatus) {
+    tareStatus.textContent = 'Tare timeout! Please check device connection.';
+    tareStatus.style.color = '#e74c3c';
+    tareButton.disabled = false;
+    tareButton.textContent = 'TARE SCALES';
+    setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
+}
+
+function handleTareError(error, tareButton, tareStatus) {
+    console.error('Error sending tare command:', error);
+    tareStatus.textContent = 'Error sending tare command!';
+    tareStatus.style.color = '#e74c3c';
+    tareStatus.style.display = 'block';
+    tareButton.disabled = false;
+    tareButton.textContent = 'TARE SCALES';
+    setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
+}
+
+function handleDataError(error) {
+    console.error("Data error:", error);
+    document.getElementById('stats-info').textContent = 'Error: ' + error.message;
 }
 
 // --------------------
@@ -350,42 +407,60 @@ window.onload = function () {
 
     const chartCanvas = document.getElementById('weight-chart');
 
-    chartCanvas.addEventListener('wheel', handleChartScroll);
+    // Consolidated event listeners
+    const eventConfig = [
+        { element: chartCanvas, event: 'wheel', handler: handleChartScroll },
+        { element: chartCanvas, event: 'mousedown', handler: (e) => {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartPanOffset = panOffset;
+            isAutoScroll = false;
+            chartCanvas.style.cursor = 'grabbing';
+        }},
+        { element: chartCanvas, event: 'mousemove', handler: (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - dragStartX;
+            const dataPointsToPan = Math.round(dx / 15);
+            panOffset = Math.max(0, Math.min(allHistoricalData.length - currentDataWindow, dragStartPanOffset + dataPointsToPan));
+            updateChartData();
+        }},
+        { element: chartCanvas, event: 'mouseup', handler: () => { 
+            isDragging = false; 
+            chartCanvas.style.cursor = 'default'; 
+        }},
+        { element: chartCanvas, event: 'mouseleave', handler: () => { 
+            isDragging = false; 
+            chartCanvas.style.cursor = 'default'; 
+        }},
+        { element: 'time-window', event: 'input', handler: function () {
+            currentDataWindow = parseInt(this.value) || 20;
+            panOffset = 0;
+            isAutoScroll = true;
+            zoomLevel = 1;
+            updateChartData();
+        }},
+        { element: 'live-view-button', event: 'click', handler: resetToLiveView },
+        { element: 'load-older-button', event: 'click', handler: () => { 
+            isAutoScroll = false; 
+            loadOlderData(); 
+        }},
+        { element: 'view-newer-button', event: 'click', handler: () => { 
+            isAutoScroll = false; 
+            panOffset = Math.max(0, panOffset - currentDataWindow); 
+            updateChartData(); 
+        }},
+        { element: 'zoom-in-button', event: 'click', handler: () => zoomChart(0.8) },
+        { element: 'zoom-out-button', event: 'click', handler: () => zoomChart(1.2) },
+        { element: 'tare-button', event: 'click', handler: sendTareCommand }
+    ];
 
-    chartCanvas.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        dragStartX = e.clientX;
-        dragStartPanOffset = panOffset;
-        isAutoScroll = false;
-        chartCanvas.style.cursor = 'grabbing';
+    eventConfig.forEach(config => {
+        const element = typeof config.element === 'string' ? 
+            document.getElementById(config.element) : config.element;
+        if (element) {
+            element.addEventListener(config.event, config.handler);
+        }
     });
-
-    chartCanvas.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - dragStartX;
-        const dataPointsToPan = Math.round(dx / 15);
-        panOffset = Math.max(0, Math.min(allHistoricalData.length - currentDataWindow, dragStartPanOffset + dataPointsToPan));
-        updateChartData();
-    });
-
-    chartCanvas.addEventListener('mouseup', () => { isDragging = false; chartCanvas.style.cursor = 'default'; });
-    chartCanvas.addEventListener('mouseleave', () => { isDragging = false; chartCanvas.style.cursor = 'default'; });
-
-    document.getElementById('time-window').addEventListener('input', function () {
-        currentDataWindow = parseInt(this.value) || 20;
-        panOffset = 0;
-        isAutoScroll = true;
-        zoomLevel = 1;
-        updateChartData();
-    });
-
-    document.getElementById('live-view-button').addEventListener('click', resetToLiveView);
-    document.getElementById('load-older-button').addEventListener('click', () => { isAutoScroll = false; loadOlderData(); });
-    document.getElementById('view-newer-button').addEventListener('click', () => { isAutoScroll = false; panOffset = Math.max(0, panOffset - currentDataWindow); updateChartData(); });
-    document.getElementById('zoom-in-button').addEventListener('click', () => zoomChart(0.8));
-    document.getElementById('zoom-out-button').addEventListener('click', () => zoomChart(1.2));
-
-    document.getElementById('tare-button').addEventListener('click', sendTareCommand);
 
     initializeDeviceMonitoring();
     setupDataListening();

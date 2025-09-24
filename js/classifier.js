@@ -1,7 +1,7 @@
-// js/classifier.js
-// Sleep position classifier with visual feedback - Improved classification logic
+// js/classifier.js - OPTIMIZED
+// Sleep position classifier with reduced redundancy
 
-// Position to image mapping
+// Constants
 const POSITION_IMAGES = {
     "Straight Center": "pos_center.png",
     "Straight Left": "pos_left.png",
@@ -11,38 +11,34 @@ const POSITION_IMAGES = {
     "Empty Bed": "pos_empty.png"
 };
 
-// Position history tracking
-let positionHistory = [];
 const MAX_HISTORY = 20;
-let currentPosition = "Empty Bed";
-let currentConfidence = 0;
-let positionChangeTimer = null;
+const CONFIDENCE_THRESHOLDS = {
+    HIGH: 80,
+    MEDIUM: 60,
+    LOW: 0
+};
 
-// DOM elements
-let positionImageElement, positionHistoryElement, classificationStatusElement;
+// State management
+const ClassifierState = {
+    positionHistory: [],
+    currentPosition: "Empty Bed",
+    currentConfidence: 0,
+    positionChangeTimer: null,
+    elements: {}
+};
 
 // Initialize classifier
 function initClassifier() {
-    // Create UI elements if they don't exist
     createClassifierUI();
-    
-    // Get references to DOM elements
-    positionImageElement = document.getElementById('position-image');
-    positionHistoryElement = document.getElementById('position-history');
-    classificationStatusElement = document.getElementById('classification-status');
-    
-    // Set initial state
-    updatePositionDisplay("Empty Bed", 0);
-    
-    // Initially hide the classification section until device comes online
-    toggleClassificationSection(false);
+    cacheDOMElements();
+    initializeClassifierState();
 }
 
-// Create the classifier UI elements
 function createClassifierUI() {
     const chartContainer = document.querySelector('.chart-container');
     
-    // Create classification section
+    if (!chartContainer) return;
+    
     const classificationSection = document.createElement('div');
     classificationSection.className = 'classification-container';
     classificationSection.id = 'classification-container';
@@ -69,324 +65,263 @@ function createClassifierUI() {
         </div>
     `;
     
-    // Insert after the chart container
     chartContainer.parentNode.insertBefore(classificationSection, chartContainer.nextSibling);
 }
 
-// Show or hide the entire classification section based on device status
-function toggleClassificationSection(show) {
-    const classificationContainer = document.getElementById('classification-container');
-    if (classificationContainer) {
-        classificationContainer.style.display = show ? 'block' : 'none';
-    }
-}
-
-// Check if device is online by looking at device status
-function isDeviceOnline() {
-    const deviceStatusDot = document.getElementById('device-status-dot');
-    if (!deviceStatusDot) return false;
-    
-    return deviceStatusDot.classList.contains('device-live');
-}
-
-// Improved sleep position classification with better logic
-function classifySleepPosition(rh, lh, rt, lt, total) {
-    // Check if bed is empty
-    if (total < 500) {
-        return { position: "Empty Bed", confidence: 95, debug: "Total pressure too low" };
-    }
-    
-    // Calculate percentage distribution
-    const rhPercent = (rh / total) * 100;
-    const lhPercent = (lh / total) * 100;
-    const rtPercent = (rt / total) * 100;
-    const ltPercent = (lt / total) * 100;
-    
-    // Calculate aggregated values
-    const leftTotal = lhPercent + ltPercent;
-    const rightTotal = rhPercent + rtPercent;
-    const leftRightRatio = leftTotal / rightTotal;
-    const leftRightDiff = Math.abs(leftTotal - rightTotal);
-    
-    // Calculate head vs tail distribution
-    const headTotal = rhPercent + lhPercent;
-    const tailTotal = rtPercent + ltPercent;
-    const headTailRatio = headTotal / tailTotal;
-    const headTailDiff = Math.abs(headTotal - tailTotal);
-    
-    // Calculate cross-diagonal patterns
-    const leftHeadRightTail = lhPercent + rtPercent; // LH + RT
-    const rightHeadLeftTail = rhPercent + ltPercent; // RH + LT
-    const diagonalDiff = Math.abs(leftHeadRightTail - rightHeadLeftTail);
-    
-    // Debug information
-    let debugInfo = `L/R: ${leftRightRatio.toFixed(2)}, H/T: ${headTailRatio.toFixed(2)}, LR-Diff: ${leftRightDiff.toFixed(1)}%`;
-    
-    // Check for movement/transition (high fluctuation)
-    const sensorValues = [rh, lh, rt, lt];
-    const maxVal = Math.max(...sensorValues);
-    const minVal = Math.min(...sensorValues);
-    const fluctuation = (maxVal - minVal) / total * 100;
-    
-    // Improved classification logic with more nuanced thresholds
-    
-    // 1. Empty bed check (already done above)
-    
-    // 2. Strong left side preference (Straight Left)
-    if (leftRightRatio > 2.0 && leftRightDiff > 30) {
-        return { 
-            position: "Straight Left", 
-            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "left"),
-            debug: debugInfo + ", Strong left bias"
-        };
-    }
-    
-    // 3. Strong right side preference (Straight Right)  
-    if (leftRightRatio < 0.5 && leftRightDiff > 30) {
-        return { 
-            position: "Straight Right", 
-            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "right"),
-            debug: debugInfo + ", Strong right bias"
-        };
-    }
-    
-    // 4. Check for diagonal patterns using head sensor dominance
-    const headSensorDominance = Math.abs(rhPercent - lhPercent);
-    const isHeadDominant = headTotal > tailTotal + 10; // Head sensors have 10%+ more pressure
-    
-    // Diagonal Right - Right head sensor is significantly higher than left head
-    if (rhPercent > lhPercent + 8 && headSensorDominance > 8 && leftRightRatio >= 0.6 && leftRightRatio <= 1.4) {
-        return { 
-            position: "Diagonal Right", 
-            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "diagonal-right"),
-            debug: debugInfo + `, RH dominant: ${rhPercent.toFixed(1)}% vs LH: ${lhPercent.toFixed(1)}%`
-        };
-    }
-    
-    // Diagonal Left - Left head sensor is significantly higher than right head  
-    if (lhPercent > rhPercent + 8 && headSensorDominance > 8 && leftRightRatio >= 0.7 && leftRightRatio <= 1.67) {
-        return { 
-            position: "Diagonal Left", 
-            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "diagonal-left"),
-            debug: debugInfo + `, LH dominant: ${lhPercent.toFixed(1)}% vs RH: ${rhPercent.toFixed(1)}%`
-        };
-    }
-    
-    // 5. Moderate left preference (could be diagonal left or straight left)
-    if (leftRightRatio > 1.2 && leftRightRatio <= 2.0) {
-        // If head sensors show imbalance, it's diagonal
-        if (headSensorDominance > 5) {
-            const position = lhPercent > rhPercent ? "Diagonal Left" : "Diagonal Right";
-            return { 
-                position, 
-                confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, position.toLowerCase().replace(" ", "-")),
-                debug: debugInfo + ", Moderate left + head imbalance"
-            };
-        } else {
-            return { 
-                position: "Straight Left", 
-                confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "left"),
-                debug: debugInfo + ", Moderate left preference"
-            };
-        }
-    }
-    
-    // 6. Moderate right preference  
-    if (leftRightRatio < 0.8 && leftRightRatio >= 0.5) {
-        // If head sensors show imbalance, it's diagonal
-        if (headSensorDominance > 5) {
-            const position = rhPercent > lhPercent ? "Diagonal Right" : "Diagonal Left";
-            return { 
-                position, 
-                confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, position.toLowerCase().replace(" ", "-")),
-                debug: debugInfo + ", Moderate right + head imbalance"
-            };
-        } else {
-            return { 
-                position: "Straight Right", 
-                confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "right"),
-                debug: debugInfo + ", Moderate right preference"
-            };
-        }
-    }
-    
-    // 7. Balanced distribution - check for subtle diagonal patterns
-    if (leftRightRatio >= 0.8 && leftRightRatio <= 1.2) {
-        // Even with balanced left/right, check head sensor imbalance for diagonal detection
-        if (headSensorDominance > 6) {
-            if (rhPercent > lhPercent) {
-                return { 
-                    position: "Diagonal Right", 
-                    confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "diagonal-right"),
-                    debug: debugInfo + ", Balanced L/R but RH > LH"
-                };
-            } else {
-                return { 
-                    position: "Diagonal Left", 
-                    confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "diagonal-left"),
-                    debug: debugInfo + ", Balanced L/R but LH > RH"
-                };
-            }
-        }
-        
-        // True center position - all sensors relatively balanced
-        return { 
-            position: "Straight Center", 
-            confidence: calculateImprovedConfidence(rh, lh, rt, lt, total, "center"),
-            debug: debugInfo + ", Balanced distribution"
-        };
-    }
-    
-    // Default fallback
-    return { 
-        position: "Straight Center", 
-        confidence: 40, 
-        debug: debugInfo + ", Default fallback"
+function cacheDOMElements() {
+    ClassifierState.elements = {
+        positionImage: document.getElementById('position-image'),
+        positionHistory: document.getElementById('position-history'),
+        classificationStatus: document.getElementById('classification-status'),
+        positionConfidence: document.getElementById('position-confidence'),
+        currentPosition: document.getElementById('current-position'),
+        positionDebug: document.getElementById('position-debug'),
+        classificationContainer: document.getElementById('classification-container')
     };
 }
 
-// Improved confidence calculation
-function calculateImprovedConfidence(rh, lh, rt, lt, total, positionType) {
-    const rhPercent = (rh / total) * 100;
-    const lhPercent = (lh / total) * 100;
-    const rtPercent = (rt / total) * 100;
-    const ltPercent = (lt / total) * 100;
+function initializeClassifierState() {
+    ClassifierState.currentPosition = "Empty Bed";
+    ClassifierState.currentConfidence = 0;
+    ClassifierState.positionHistory = [];
     
-    let expectedPattern = {};
-    
-    // Define expected patterns for each position type with more realistic expectations
-    switch(positionType) {
-        case "center":
-            expectedPattern = {lh: 25, rh: 25, lt: 25, rt: 25, tolerance: 12};
-            break;
-        case "left":
-            expectedPattern = {lh: 35, rh: 15, lt: 35, rt: 15, tolerance: 15};
-            break;
-        case "right":
-            expectedPattern = {lh: 15, rh: 35, lt: 15, rt: 35, tolerance: 15};
-            break;
-        case "diagonal-left":
-            // Expecting higher left head, moderate left tail, lower right values
-            expectedPattern = {lh: 32, rh: 18, lt: 28, rt: 22, tolerance: 18};
-            break;
-        case "diagonal-right":
-            // Expecting higher right head, moderate right tail, lower left values  
-            expectedPattern = {lh: 18, rh: 32, lt: 22, rt: 28, tolerance: 18};
-            break;
-        default:
-            return 0;
-    }
-    
-    // Calculate deviation from expected pattern
-    const lhDev = Math.abs(lhPercent - expectedPattern.lh);
-    const rhDev = Math.abs(rhPercent - expectedPattern.rh);
-    const ltDev = Math.abs(ltPercent - expectedPattern.lt);
-    const rtDev = Math.abs(rtPercent - expectedPattern.rt);
-    
-    const avgDev = (lhDev + rhDev + ltDev + rtDev) / 4;
-    
-    // Convert to confidence score (30-100%)
-    const baseConfidence = Math.max(30, 100 - (avgDev * 100 / expectedPattern.tolerance));
-    
-    // Bonus confidence for clear patterns
-    if (positionType.includes("diagonal")) {
-        const headImbalance = Math.abs(rhPercent - lhPercent);
-        if (headImbalance > 10) baseConfidence += 10; // Bonus for clear head imbalance
-    }
-    
-    return Math.min(100, Math.round(baseConfidence));
+    updatePositionDisplay("Empty Bed", 0);
+    toggleClassificationSection(false);
 }
 
-// Update position display with debug information
-function updatePositionDisplay(position, confidence, debug = "") {
-    // Update current position and confidence
-    currentPosition = position;
-    currentConfidence = confidence;
-    
-    // Update image
-    if (positionImageElement) {
-        const imagePath = `assets/${POSITION_IMAGES[position] || 'pos_empty.png'}`;
-        positionImageElement.src = imagePath;
-        positionImageElement.alt = position;
+// Consolidated device status check
+function isDeviceOnline() {
+    const deviceStatusDot = document.getElementById('device-status-dot');
+    return deviceStatusDot && deviceStatusDot.classList.contains('device-live');
+}
+
+function isDataLive() {
+    return typeof lastDataTimestamp !== 'undefined' && (Date.now() - lastDataTimestamp < 15000);
+}
+
+// Consolidated classification logic
+function classifySleepPosition(rh, lh, rt, lt, total) {
+    // Empty bed check
+    if (total < 500) {
+        return createClassificationResult("Empty Bed", 95, "Total pressure too low");
     }
     
-    // Update confidence indicator
-    const confidenceElement = document.getElementById('position-confidence');
-    if (confidenceElement) {
-        confidenceElement.textContent = `${confidence}% confidence`;
+    const percentages = calculatePercentages(rh, lh, rt, lt, total);
+    const patterns = analyzePatterns(percentages);
+    
+    return determinePosition(percentages, patterns);
+}
+
+function calculatePercentages(rh, lh, rt, lt, total) {
+    return {
+        rh: (rh / total) * 100,
+        lh: (lh / total) * 100,
+        rt: (rt / total) * 100,
+        lt: (lt / total) * 100
+    };
+}
+
+function analyzePatterns(percentages) {
+    const leftTotal = percentages.lh + percentages.lt;
+    const rightTotal = percentages.rh + percentages.rt;
+    const headTotal = percentages.rh + percentages.lh;
+    const tailTotal = percentages.rt + percentages.lt;
+    
+    return {
+        leftRightRatio: leftTotal / rightTotal,
+        leftRightDiff: Math.abs(leftTotal - rightTotal),
+        headTailRatio: headTotal / tailTotal,
+        headTailDiff: Math.abs(headTotal - tailTotal),
+        headSensorDominance: Math.abs(percentages.rh - percentages.lh),
+        isHeadDominant: headTotal > tailTotal + 10
+    };
+}
+
+function determinePosition(percentages, patterns) {
+    const { leftRightRatio, leftRightDiff, headSensorDominance } = patterns;
+    
+    // Strong side preferences
+    if (leftRightRatio > 2.0 && leftRightDiff > 30) {
+        return createClassificationResult("Straight Left", calculateConfidence(percentages, "left"), "Strong left bias");
+    }
+    
+    if (leftRightRatio < 0.5 && leftRightDiff > 30) {
+        return createClassificationResult("Straight Right", calculateConfidence(percentages, "right"), "Strong right bias");
+    }
+    
+    // Diagonal patterns based on head sensor dominance
+    if (headSensorDominance > 8) {
+        if (percentages.rh > percentages.lh + 8 && isBalancedSideRatio(leftRightRatio)) {
+            return createClassificationResult("Diagonal Right", calculateConfidence(percentages, "diagonal-right"), 
+                `RH dominant: ${percentages.rh.toFixed(1)}% vs LH: ${percentages.lh.toFixed(1)}%`);
+        }
         
-        // Color code based on confidence
-        if (confidence > 80) {
-            confidenceElement.style.color = '#27ae60'; // Green - high confidence
-        } else if (confidence > 60) {
-            confidenceElement.style.color = '#f39c12'; // Orange - medium confidence
-        } else {
-            confidenceElement.style.color = '#e74c3c'; // Red - low confidence
+        if (percentages.lh > percentages.rh + 8 && isBalancedSideRatio(leftRightRatio)) {
+            return createClassificationResult("Diagonal Left", calculateConfidence(percentages, "diagonal-left"),
+                `LH dominant: ${percentages.lh.toFixed(1)}% vs RH: ${percentages.rh.toFixed(1)}%`);
         }
     }
     
-    // Update current position text
-    const currentPositionElement = document.getElementById('current-position');
-    if (currentPositionElement) {
-        currentPositionElement.textContent = position;
+    // Moderate preferences
+    if (leftRightRatio > 1.2 && leftRightRatio <= 2.0) {
+        return handleModeratePreference(percentages, patterns, "left");
     }
     
-    // Update debug information
-    const debugElement = document.getElementById('position-debug');
-    if (debugElement && debug) {
-        debugElement.textContent = debug;
-        debugElement.style.fontSize = '0.8em';
-        debugElement.style.color = '#7f8c8d';
-        debugElement.style.marginTop = '5px';
+    if (leftRightRatio < 0.8 && leftRightRatio >= 0.5) {
+        return handleModeratePreference(percentages, patterns, "right");
     }
     
-    // Add to history if position changed significantly
+    // Balanced distribution
+    if (isBalancedSideRatio(leftRightRatio)) {
+        if (headSensorDominance > 6) {
+            const position = percentages.rh > percentages.lh ? "Diagonal Right" : "Diagonal Left";
+            return createClassificationResult(position, calculateConfidence(percentages, position.toLowerCase().replace(" ", "-")),
+                "Balanced L/R with head imbalance");
+        }
+        return createClassificationResult("Straight Center", calculateConfidence(percentages, "center"), "Balanced distribution");
+    }
+    
+    // Default fallback
+    return createClassificationResult("Straight Center", 40, "Default fallback");
+}
+
+function isBalancedSideRatio(ratio) {
+    return ratio >= 0.8 && ratio <= 1.2;
+}
+
+function handleModeratePreference(percentages, patterns, side) {
+    const { headSensorDominance } = patterns;
+    
+    if (headSensorDominance > 5) {
+        const isLeftPreferred = side === "left";
+        const headDominantSide = percentages.lh > percentages.rh ? "left" : "right";
+        const position = (isLeftPreferred && headDominantSide === "left") || (!isLeftPreferred && headDominantSide === "right") ? 
+            `Diagonal ${side.charAt(0).toUpperCase() + side.slice(1)}` : 
+            `Diagonal ${headDominantSide.charAt(0).toUpperCase() + headDominantSide.slice(1)}`;
+        
+        return createClassificationResult(position, calculateConfidence(percentages, position.toLowerCase().replace(" ", "-")),
+            `Moderate ${side} + head imbalance`);
+    }
+    
+    return createClassificationResult(`Straight ${side.charAt(0).toUpperCase() + side.slice(1)}`, 
+        calculateConfidence(percentages, side), `Moderate ${side} preference`);
+}
+
+function createClassificationResult(position, confidence, debug) {
+    return { position, confidence, debug };
+}
+
+// Consolidated confidence calculation
+function calculateConfidence(percentages, positionType) {
+    const expectedPatterns = {
+        "center": { lh: 25, rh: 25, lt: 25, rt: 25, tolerance: 12 },
+        "left": { lh: 35, rh: 15, lt: 35, rt: 15, tolerance: 15 },
+        "right": { lh: 15, rh: 35, lt: 15, rt: 35, tolerance: 15 },
+        "diagonal-left": { lh: 32, rh: 18, lt: 28, rt: 22, tolerance: 18 },
+        "diagonal-right": { lh: 18, rh: 32, lt: 22, rt: 28, tolerance: 18 }
+    };
+
+    const pattern = expectedPatterns[positionType] || expectedPatterns.center;
+    
+    const deviations = [
+        Math.abs(percentages.lh - pattern.lh),
+        Math.abs(percentages.rh - pattern.rh),
+        Math.abs(percentages.lt - pattern.lt),
+        Math.abs(percentages.rt - pattern.rt)
+    ];
+    
+    const avgDeviation = deviations.reduce((sum, dev) => sum + dev, 0) / deviations.length;
+    let confidence = Math.max(30, 100 - (avgDeviation * 100 / pattern.tolerance));
+    
+    // Bonus for clear diagonal patterns
+    if (positionType.includes("diagonal") && Math.abs(percentages.rh - percentages.lh) > 10) {
+        confidence += 10;
+    }
+    
+    return Math.min(100, Math.round(confidence));
+}
+
+// Consolidated UI updates
+function updatePositionDisplay(position, confidence, debug = "") {
+    ClassifierState.currentPosition = position;
+    ClassifierState.currentConfidence = confidence;
+    
+    updatePositionImage(position);
+    updateConfidenceDisplay(confidence);
+    updatePositionText(position);
+    updateDebugInfo(debug);
     addToPositionHistory(position, confidence);
 }
 
-// Add position to history with debouncing
-function addToPositionHistory(position, confidence) {
-    // Clear any existing timer
-    if (positionChangeTimer) {
-        clearTimeout(positionChangeTimer);
+function updatePositionImage(position) {
+    if (ClassifierState.elements.positionImage) {
+        const imagePath = `assets/${POSITION_IMAGES[position] || 'pos_empty.png'}`;
+        ClassifierState.elements.positionImage.src = imagePath;
+        ClassifierState.elements.positionImage.alt = position;
     }
-    
-    // Set a timer to debounce position changes (avoid flickering)
-    positionChangeTimer = setTimeout(() => {
-        const now = new Date();
-        const timestamp = now.toLocaleTimeString();
-        
-        // Add to history if it's a new position or confidence changed significantly
-        if (positionHistory.length === 0 || 
-            positionHistory[positionHistory.length - 1].position !== position ||
-            Math.abs(positionHistory[positionHistory.length - 1].confidence - confidence) > 20) {
-            
-            positionHistory.push({
-                position,
-                confidence,
-                timestamp
-            });
-            
-            // Keep history to max size
-            if (positionHistory.length > MAX_HISTORY) {
-                positionHistory.shift();
-            }
-            
-            // Update history display
-            updatePositionHistoryDisplay();
-        }
-    }, 1000); // Wait 1 second before registering position change
 }
 
-// Update the position history display
+function updateConfidenceDisplay(confidence) {
+    if (!ClassifierState.elements.positionConfidence) return;
+    
+    ClassifierState.elements.positionConfidence.textContent = `${confidence}% confidence`;
+    ClassifierState.elements.positionConfidence.style.color = getConfidenceColor(confidence);
+}
+
+function updatePositionText(position) {
+    if (ClassifierState.elements.currentPosition) {
+        ClassifierState.elements.currentPosition.textContent = position;
+    }
+}
+
+function updateDebugInfo(debug) {
+    if (ClassifierState.elements.positionDebug && debug) {
+        ClassifierState.elements.positionDebug.textContent = debug;
+        ClassifierState.elements.positionDebug.style.fontSize = '0.8em';
+        ClassifierState.elements.positionDebug.style.color = '#7f8c8d';
+        ClassifierState.elements.positionDebug.style.marginTop = '5px';
+    }
+}
+
+function getConfidenceColor(confidence) {
+    if (confidence > CONFIDENCE_THRESHOLDS.HIGH) return '#27ae60';
+    if (confidence > CONFIDENCE_THRESHOLDS.MEDIUM) return '#f39c12';
+    return '#e74c3c';
+}
+
+function addToPositionHistory(position, confidence) {
+    if (ClassifierState.positionChangeTimer) {
+        clearTimeout(ClassifierState.positionChangeTimer);
+    }
+    
+    ClassifierState.positionChangeTimer = setTimeout(() => {
+        const lastEntry = ClassifierState.positionHistory[ClassifierState.positionHistory.length - 1];
+        
+        if (!lastEntry || lastEntry.position !== position || Math.abs(lastEntry.confidence - confidence) > 20) {
+            ClassifierState.positionHistory.push({
+                position,
+                confidence,
+                timestamp: new Date().toLocaleTimeString()
+            });
+            
+            if (ClassifierState.positionHistory.length > MAX_HISTORY) {
+                ClassifierState.positionHistory.shift();
+            }
+            
+            updatePositionHistoryDisplay();
+        }
+    }, 1000);
+}
+
 function updatePositionHistoryDisplay() {
-    if (!positionHistoryElement) return;
+    if (!ClassifierState.elements.positionHistory) return;
     
-    positionHistoryElement.innerHTML = '';
+    ClassifierState.elements.positionHistory.innerHTML = '';
     
-    positionHistory.slice().reverse().forEach(entry => {
+    ClassifierState.positionHistory.slice().reverse().forEach(entry => {
         const historyItem = document.createElement('div');
         historyItem.className = 'history-item';
+        historyItem.style.borderLeft = `4px solid ${getConfidenceColor(entry.confidence)}`;
         
         historyItem.innerHTML = `
             <span class="history-time">${entry.timestamp}</span>
@@ -394,55 +329,36 @@ function updatePositionHistoryDisplay() {
             <span class="history-confidence">${entry.confidence}%</span>
         `;
         
-        // Color code based on confidence
-        if (entry.confidence > 80) {
-            historyItem.style.borderLeft = '4px solid #27ae60';
-        } else if (entry.confidence > 60) {
-            historyItem.style.borderLeft = '4px solid #f39c12';
-        } else {
-            historyItem.style.borderLeft = '4px solid #e74c3c';
-        }
-        
-        positionHistoryElement.appendChild(historyItem);
+        ClassifierState.elements.positionHistory.appendChild(historyItem);
     });
 }
 
-// Process new data for classification
+function toggleClassificationSection(show) {
+    if (ClassifierState.elements.classificationContainer) {
+        ClassifierState.elements.classificationContainer.style.display = show ? 'block' : 'none';
+    }
+}
+
+function updateClassificationStatus(isLive) {
+    if (!ClassifierState.elements.classificationStatus) return;
+    
+    ClassifierState.elements.classificationStatus.textContent = isLive ? 'Live classification' : 'Historical data analysis';
+    ClassifierState.elements.classificationStatus.style.color = isLive ? '#27ae60' : '#7f8c8d';
+}
+
+// Main processing function
 function processDataForClassification(data) {
     if (!data) return;
     
-    // Check if device is online before processing
-    if (!isDeviceOnline()) {
-        // Hide the entire classification section
-        toggleClassificationSection(false);
-        return;
-    }
+    const deviceOnline = isDeviceOnline();
+    toggleClassificationSection(deviceOnline);
     
-    // Show the classification section if device is online
-    toggleClassificationSection(true);
+    if (!deviceOnline) return;
     
-    // Check if device is online (receiving live data)
-    const now = Date.now();
-    const timeSinceLastUpdate = now - lastDataTimestamp;
-    const isLive = timeSinceLastUpdate < 15000;
+    updateClassificationStatus(isDataLive());
     
-    // Update classification status
-    if (classificationStatusElement) {
-        if (isLive) {
-            classificationStatusElement.textContent = 'Live classification';
-            classificationStatusElement.style.color = '#27ae60';
-        } else {
-            classificationStatusElement.textContent = 'Historical data analysis';
-            classificationStatusElement.style.color = '#7f8c8d';
-        }
-    }
-    
-    // Classify position with improved algorithm
-    const { position, confidence, debug } = classifySleepPosition(
-        data.rh, data.lh, data.rt, data.lt, data.total
-    );
-    
-    updatePositionDisplay(position, confidence, debug);
+    const classification = classifySleepPosition(data.rh, data.lh, data.rt, data.lt, data.total);
+    updatePositionDisplay(classification.position, classification.confidence, classification.debug);
 }
 
 // Initialize when the page loads
