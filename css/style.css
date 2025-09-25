@@ -40,12 +40,19 @@ body {
     padding: 20px;
     text-align: center;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 .header h1 {
     font-size: 24px;
     font-weight: 300;
     margin-bottom: 5px;
+    flex: 1;
+    text-align: center;
 }
 
 .connection-status {
@@ -53,24 +60,52 @@ body {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    margin-top: 10px;
     font-size: 14px;
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
-/* Device status styles - updated for icons */
+/* Status icons container */
+.status-icons {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 0 0 auto;
+    order: -1; /* Appears first on the left */
+}
+
+/* Device status (rectangular, 3:2 ratio) */
 .device-status {
-    position: absolute;
-    left: 20px;      
-    top: 20px;
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
     font-size: 14px;
+    flex: 0 0 auto;
 }
 
 .device-status-icon {
-    width: 70px;
-    height: 70px;
+    width: 60px;
+    height: 40px; /* 3:2 ratio */
+    transition: opacity 0.3s ease;
+}
+
+/* Database status (square) */
+.database-status {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    flex: 0 0 auto;
+}
+
+.database-status-icon {
+    width: 50px;
+    height: 50px; /* square */
     transition: opacity 0.3s ease;
 }
 
@@ -93,7 +128,7 @@ body {
     background: #f39c12;
 }
 
-/* Legacy device status colors - kept for reference but not used with icons */
+/* Legacy device status colors */
 .device-live {
     background: #27ae60;
     animation: pulse 1.5s infinite;
@@ -104,9 +139,7 @@ body {
 }
 
 .tare-button {
-    position: absolute;
-    right: 20px;
-    top: 20px;
+    position: relative;
     padding: 8px 16px;
     background: #e74c3c;
     color: white;
@@ -116,6 +149,7 @@ body {
     font-size: 14px;
     font-weight: 500;
     transition: background 0.3s ease;
+    flex: 0 0 auto;
 }
 
 .tare-button:hover {
@@ -147,25 +181,11 @@ body {
     border-top: 3px solid;
 }
 
-.card-total {
-    border-top-color: var(--total-color);
-}
-
-.card-rh {
-    border-top-color: var(--rh-color);
-}
-
-.card-lh {
-    border-top-color: var(--lh-color);
-}
-
-.card-rt {
-    border-top-color: var(--rt-color);
-}
-
-.card-lt {
-    border-top-color: var(--lt-color);
-}
+.card-total { border-top-color: var(--total-color); }
+.card-rh    { border-top-color: var(--rh-color); }
+.card-lh    { border-top-color: var(--lh-color); }
+.card-rt    { border-top-color: var(--rt-color); }
+.card-lt    { border-top-color: var(--lt-color); }
 
 .card-title {
     font-size: 12px;
@@ -258,31 +278,12 @@ body {
     border-radius: 15px;
 }
 
-.legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
-}
-
-.legend-total {
-    background-color: var(--total-color);
-}
-
-.legend-rh {
-    background-color: var(--rh-color);
-}
-
-.legend-lh {
-    background-color: var(--lh-color);
-}
-
-.legend-rt {
-    background-color: var(--rt-color);
-}
-
-.legend-lt {
-    background-color: var(--lt-color);
-}
+.legend-color { width: 12px; height: 12px; border-radius: 2px; }
+.legend-total { background-color: var(--total-color); }
+.legend-rh    { background-color: var(--rh-color); }
+.legend-lh    { background-color: var(--lh-color); }
+.legend-rt    { background-color: var(--rt-color); }
+.legend-lt    { background-color: var(--lt-color); }
 
 .footer {
     background: var(--grid-color);
@@ -292,10 +293,7 @@ body {
     font-size: 12px;
 }
 
-.timestamp {
-    margin-top: 8px;
-    font-size: 11px;
-}
+.timestamp { margin-top: 8px; font-size: 11px; }
 
 .stats-info {
     text-align: center;
@@ -329,9 +327,7 @@ body {
     font-size: 12px;
 }
 
-.nav-button:hover {
-    background: #2980b9;
-}
+.nav-button:hover { background: #2980b9; }
 
 .loading-indicator {
     text-align: center;
@@ -349,9 +345,7 @@ body {
 }
 
 /* Animation for value updates */
-.value-change {
-    animation: valueChange 0.3s ease-in-out;
-}
+.value-change { animation: valueChange 0.3s ease-in-out; }
 
 @keyframes valueChange {
     0% { transform: scale(1); }
@@ -423,9 +417,7 @@ body {
     font-weight: 500;
 }
 
-.position-details {
-    flex: 1;
-}
+.position-details { flex: 1; }
 
 .current-position {
     font-size: 18px;
@@ -458,51 +450,98 @@ body {
     font-size: 12px;
 }
 
-.history-time {
-    color: #7f8c8d;
-    flex: 0 0 60px;
-}
-
-.history-position {
-    flex: 1;
-    font-weight: 500;
-}
-
-.history-confidence {
-    flex: 0 0 40px;
-    text-align: right;
-}
+.history-time { color: #7f8c8d; flex: 0 0 60px; }
+.history-position { flex: 1; font-weight: 500; }
+.history-confidence { flex: 0 0 40px; text-align: right; }
 
 /* Responsive adjustments */
 @media (max-width: 1200px) {
-    .current-readings {
-        grid-template-columns: repeat(3, 1fr);
-    }
+    .current-readings { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 768px) {
-    .current-readings {
-        grid-template-columns: repeat(2, 1fr);
+    .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+        padding-bottom: 60px; /* Room for connection status */
     }
+    
+    .header h1 {
+        order: 0;
+        margin-bottom: 10px;
+    }
+    
+    .status-icons {
+        order: 1;
+        justify-content: center;
+        gap: 20px;
+    }
+    
+    .device-status-icon {
+        width: 45px;
+        height: 30px; /* 3:2 ratio */
+    }
+    
+    .database-status-icon {
+        width: 40px;
+        height: 40px; /* square */
+    }
+    
+    .tare-button {
+        order: 2;
+        margin: 0;
+    }
+    
+    .connection-status {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 12px;
+    }
+
+    .current-readings { grid-template-columns: repeat(2, 1fr); }
+    
     .chart-header {
         flex-direction: column;
         text-align: center;
     }
-    .chart-controls {
-        justify-content: center;
-    }
-    .tare-button {
-        position: relative;
-        right: auto;
-        top: auto;
-        margin: 10px auto;
-        display: block;
-    }
-    .position-visualization {
-        flex-direction: column;
-    }
+    
+    .chart-controls { justify-content: center; }
+    
+    .position-visualization { flex-direction: column; }
+    
     .position-image-container {
         flex: 0 0 auto;
         margin: 0 auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 15px;
+        padding-bottom: 50px;
+    }
+    
+    .header h1 { font-size: 20px; }
+    
+    .device-status-icon {
+        width: 36px;
+        height: 24px; /* 3:2 ratio */
+    }
+    .database-status-icon {
+        width: 30px;
+        height: 30px; /* square */
+    }
+    
+    .tare-button {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .current-readings {
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
 }

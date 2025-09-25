@@ -2,6 +2,7 @@
 // js/app.js - OPTIMIZED
 // Handles real-time data, UI updates, zoom/pan, and controls
 // Simplified device status: only online/offline with 5-second timeout using icons
+// Updated database connection status to use icons instead of text
 // --------------------
 
 // Global variables
@@ -10,6 +11,7 @@ let deviceStatusCheckInterval;
 const DEVICE_TIMEOUT = 5000; // 5 seconds
 let deviceStatusStartupComplete = false;
 
+
 // Simplified device status management - removed STALE
 const DeviceStatus = {
     UNKNOWN: 'unknown',
@@ -17,21 +19,28 @@ const DeviceStatus = {
     OFFLINE: 'offline'
 };
 
+
+// --------------------
+// DATA LISTENING AND MANAGEMENT
+// --------------------
+
 function setupDataListening() {
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
+    const databaseStatusIcon = document.getElementById('database-status-icon');
 
-    statusDot.className = 'status-dot connecting';
-    statusText.textContent = 'Connecting to database...';
+    // Hide the original text-based status elements
+    statusDot.style.display = 'none';
+    statusText.style.display = 'none';
 
-    // Monitor Firebase connection
+    // Monitor Firebase connection and update database status icon
     database.ref('.info/connected').on('value', function (connectedSnap) {
         if (connectedSnap.val() === true) {
-            statusDot.className = 'status-dot connected';
-            statusText.textContent = 'Connected to database';
+            databaseStatusIcon.src = 'assets/db_connected.png';
+            databaseStatusIcon.alt = 'Database Connected';
         } else {
-            statusDot.className = 'status-dot disconnected';
-            statusText.textContent = 'Disconnected from database';
+            databaseStatusIcon.src = 'assets/db_disconnected.png';
+            databaseStatusIcon.alt = 'Database Disconnected';
         }
     });
 
@@ -41,6 +50,7 @@ function setupDataListening() {
         .on('child_added', (snapshot) => processDataPoint(snapshot.val(), snapshot.key));
 }
 
+
 function loadHistoricalData() {
     database.ref('patient/readings').orderByKey().limitToLast(1000).once('value')
         .then((snapshot) => {
@@ -49,12 +59,14 @@ function loadHistoricalData() {
                 const data = childSnapshot.val();
                 allHistoricalData.push(createDataPoint(childSnapshot.key, data));
             });
+            
             allHistoricalData.sort((a, b) => a.key.localeCompare(b.key));
             updateDataPointsCount();
             updateChartData();
         })
         .catch(handleDataError);
 }
+
 
 // Consolidated data point creation
 function createDataPoint(key, data) {
@@ -68,6 +80,7 @@ function createDataPoint(key, data) {
         total: data.total || 0
     };
 }
+
 
 function processDataPoint(data, key) {
     if (!data) return;
@@ -105,6 +118,11 @@ function processDataPoint(data, key) {
     }
 }
 
+
+// --------------------
+// UI UPDATE FUNCTIONS
+// --------------------
+
 // Consolidated UI value updates
 function updateSensorValues(data) {
     const sensors = [
@@ -125,9 +143,11 @@ function updateSensorValues(data) {
     });
 }
 
+
 function updateDataPointsCount() {
     document.getElementById('data-points').textContent = allHistoricalData.length;
 }
+
 
 function updateChartData() {
     if (allHistoricalData.length === 0) {
@@ -144,14 +164,18 @@ function updateChartData() {
     weightChart.update('none');
 }
 
+
 function getDisplayData() {
     let start = Math.max(0, allHistoricalData.length - currentDataWindow - panOffset);
     let end = Math.min(allHistoricalData.length, start + currentDataWindow);
+    
     if (end - start < currentDataWindow) {
         start = Math.max(0, end - currentDataWindow);
     }
+    
     return allHistoricalData.slice(start, end);
 }
+
 
 function updateChartDataset(displayData) {
     weightChart.data.labels = displayData.map(item => item.timestamp);
@@ -169,10 +193,16 @@ function updateChartDataset(displayData) {
     });
 }
 
+
 function updateChartYAxis(displayData) {
     const allValues = displayData.flatMap(item => [item.total, item.rh, item.lh, item.rt, item.lt]);
     weightChart.options.scales.y.suggestedMax = Math.max(...allValues, 10) * 1.1;
 }
+
+
+// --------------------
+// CHART NAVIGATION AND ZOOM
+// --------------------
 
 function resetToLiveView() {
     isAutoScroll = true;
@@ -182,6 +212,7 @@ function resetToLiveView() {
     document.getElementById('time-window').value = currentDataWindow;
     updateChartData();
 }
+
 
 function loadOlderData() {
     if (isLoadingMoreData || allHistoricalData.length === 0) return;
@@ -220,6 +251,7 @@ function loadOlderData() {
         });
 }
 
+
 function handleChartScroll(event) {
     event.preventDefault();
     isAutoScroll = false;
@@ -237,6 +269,7 @@ function handleChartScroll(event) {
     zoomChart(delta > 0 ? 0.9 : 1.1, zoomCenterIndex);
 }
 
+
 function zoomChart(scaleFactor, centerIndex = null) {
     if (centerIndex === null) {
         centerIndex = allHistoricalData.length - currentDataWindow / 2;
@@ -252,6 +285,11 @@ function zoomChart(scaleFactor, centerIndex = null) {
     zoomLevel = 1000 / currentDataWindow;
     updateChartData();
 }
+
+
+// --------------------
+// DEVICE STATUS MONITORING
+// --------------------
 
 // Simplified device status monitoring - removed stale condition
 function getDeviceStatus() {
@@ -273,6 +311,7 @@ function getDeviceStatus() {
     }
 }
 
+
 function monitorDeviceStatus() {
     const deviceStatusIcon = document.getElementById('device-status-icon');
     
@@ -286,6 +325,7 @@ function monitorDeviceStatus() {
             deviceStatusIcon.src = 'assets/device_online.png';
             deviceStatusIcon.alt = 'Device Online';
             break;
+            
         case DeviceStatus.OFFLINE:
         case DeviceStatus.UNKNOWN:
         default:
@@ -294,6 +334,7 @@ function monitorDeviceStatus() {
             break;
     }
 }
+
 
 function initializeDeviceMonitoring() {
     lastDataTimestamp = 0;
@@ -312,6 +353,11 @@ function initializeDeviceMonitoring() {
     
     deviceStatusCheckInterval = setInterval(monitorDeviceStatus, 1000);
 }
+
+
+// --------------------
+// TARE COMMAND HANDLING
+// --------------------
 
 function sendTareCommand() {
     const tareButton = document.getElementById('tare-button');
@@ -352,6 +398,7 @@ function sendTareCommand() {
     });
 }
 
+
 function handleTareCompletion(tareButton, tareStatus, listener) {
     tareStatus.textContent = 'Tare completed successfully!';
     tareStatus.style.color = '#27ae60';
@@ -367,6 +414,7 @@ function handleTareCompletion(tareButton, tareStatus, listener) {
     }, 3000);
 }
 
+
 function handleTareTimeout(tareButton, tareStatus) {
     tareStatus.textContent = 'Tare timeout! Please check device connection.';
     tareStatus.style.color = '#e74c3c';
@@ -374,6 +422,7 @@ function handleTareTimeout(tareButton, tareStatus) {
     tareButton.textContent = 'TARE SCALES';
     setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
 }
+
 
 function handleTareError(error, tareButton, tareStatus) {
     console.error('Error sending tare command:', error);
@@ -385,13 +434,19 @@ function handleTareError(error, tareButton, tareStatus) {
     setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
 }
 
+
+// --------------------
+// ERROR HANDLING
+// --------------------
+
 function handleDataError(error) {
     console.error("Data error:", error);
     document.getElementById('stats-info').textContent = 'Error: ' + error.message;
 }
 
+
 // --------------------
-// Event wiring
+// EVENT WIRING
 // --------------------
 
 window.onload = function () {
@@ -401,49 +456,98 @@ window.onload = function () {
 
     // Consolidated event listeners
     const eventConfig = [
-        { element: chartCanvas, event: 'wheel', handler: handleChartScroll },
-        { element: chartCanvas, event: 'mousedown', handler: (e) => {
-            isDragging = true;
-            dragStartX = e.clientX;
-            dragStartPanOffset = panOffset;
-            isAutoScroll = false;
-            chartCanvas.style.cursor = 'grabbing';
-        }},
-        { element: chartCanvas, event: 'mousemove', handler: (e) => {
-            if (!isDragging) return;
-            const dx = e.clientX - dragStartX;
-            const dataPointsToPan = Math.round(dx / 15);
-            panOffset = Math.max(0, Math.min(allHistoricalData.length - currentDataWindow, dragStartPanOffset + dataPointsToPan));
-            updateChartData();
-        }},
-        { element: chartCanvas, event: 'mouseup', handler: () => { 
-            isDragging = false; 
-            chartCanvas.style.cursor = 'default'; 
-        }},
-        { element: chartCanvas, event: 'mouseleave', handler: () => { 
-            isDragging = false; 
-            chartCanvas.style.cursor = 'default'; 
-        }},
-        { element: 'time-window', event: 'input', handler: function () {
-            currentDataWindow = parseInt(this.value) || 20;
-            panOffset = 0;
-            isAutoScroll = true;
-            zoomLevel = 1;
-            updateChartData();
-        }},
-        { element: 'live-view-button', event: 'click', handler: resetToLiveView },
-        { element: 'load-older-button', event: 'click', handler: () => { 
-            isAutoScroll = false; 
-            loadOlderData(); 
-        }},
-        { element: 'view-newer-button', event: 'click', handler: () => { 
-            isAutoScroll = false; 
-            panOffset = Math.max(0, panOffset - currentDataWindow); 
-            updateChartData(); 
-        }},
-        { element: 'zoom-in-button', event: 'click', handler: () => zoomChart(0.8) },
-        { element: 'zoom-out-button', event: 'click', handler: () => zoomChart(1.2) },
-        { element: 'tare-button', event: 'click', handler: sendTareCommand }
+        { 
+            element: chartCanvas, 
+            event: 'wheel', 
+            handler: handleChartScroll 
+        },
+        { 
+            element: chartCanvas, 
+            event: 'mousedown', 
+            handler: (e) => {
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragStartPanOffset = panOffset;
+                isAutoScroll = false;
+                chartCanvas.style.cursor = 'grabbing';
+            }
+        },
+        { 
+            element: chartCanvas, 
+            event: 'mousemove', 
+            handler: (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - dragStartX;
+                const dataPointsToPan = Math.round(dx / 15);
+                panOffset = Math.max(0, Math.min(allHistoricalData.length - currentDataWindow, 
+                    dragStartPanOffset + dataPointsToPan));
+                updateChartData();
+            }
+        },
+        { 
+            element: chartCanvas, 
+            event: 'mouseup', 
+            handler: () => { 
+                isDragging = false; 
+                chartCanvas.style.cursor = 'default'; 
+            }
+        },
+        { 
+            element: chartCanvas, 
+            event: 'mouseleave', 
+            handler: () => { 
+                isDragging = false; 
+                chartCanvas.style.cursor = 'default'; 
+            }
+        },
+        { 
+            element: 'time-window', 
+            event: 'input', 
+            handler: function () {
+                currentDataWindow = parseInt(this.value) || 20;
+                panOffset = 0;
+                isAutoScroll = true;
+                zoomLevel = 1;
+                updateChartData();
+            }
+        },
+        { 
+            element: 'live-view-button', 
+            event: 'click', 
+            handler: resetToLiveView 
+        },
+        { 
+            element: 'load-older-button', 
+            event: 'click', 
+            handler: () => { 
+                isAutoScroll = false; 
+                loadOlderData(); 
+            }
+        },
+        { 
+            element: 'view-newer-button', 
+            event: 'click', 
+            handler: () => { 
+                isAutoScroll = false; 
+                panOffset = Math.max(0, panOffset - currentDataWindow); 
+                updateChartData(); 
+            }
+        },
+        { 
+            element: 'zoom-in-button', 
+            event: 'click', 
+            handler: () => zoomChart(0.8) 
+        },
+        { 
+            element: 'zoom-out-button', 
+            event: 'click', 
+            handler: () => zoomChart(1.2) 
+        },
+        { 
+            element: 'tare-button', 
+            event: 'click', 
+            handler: sendTareCommand 
+        }
     ];
 
     eventConfig.forEach(config => {
@@ -457,6 +561,7 @@ window.onload = function () {
     initializeDeviceMonitoring();
     setupDataListening();
 };
+
 
 window.addEventListener('beforeunload', function() {
     if (deviceStatusCheckInterval) {
