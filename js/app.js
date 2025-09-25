@@ -1,13 +1,13 @@
 // --------------------
 // js/app.js - OPTIMIZED
 // Handles real-time data, UI updates, zoom/pan, and controls
-// Simplified device status: only online/offline with 5-second timeout
+// Simplified device status: only online/offline with 5-second timeout using icons
 // --------------------
 
 // Global variables
 let lastDataTimestamp = 0;
 let deviceStatusCheckInterval;
-const DEVICE_TIMEOUT = 5000; // Changed to 5 seconds
+const DEVICE_TIMEOUT = 5000; // 5 seconds
 let deviceStatusStartupComplete = false;
 
 // Simplified device status management - removed STALE
@@ -274,25 +274,23 @@ function getDeviceStatus() {
 }
 
 function monitorDeviceStatus() {
-    const deviceStatusDot = document.getElementById('device-status-dot');
-    const deviceStatusText = document.getElementById('device-status-text');
+    const deviceStatusIcon = document.getElementById('device-status-icon');
     
-    // Remove all status classes
-    deviceStatusDot.classList.remove('device-live', 'device-offline');
+    if (!deviceStatusIcon) return;
     
     const status = getDeviceStatus();
     
-    // Simplified switch - removed stale case
+    // Switch between device icons based on status
     switch(status) {
         case DeviceStatus.LIVE:
-            deviceStatusDot.classList.add('device-live');
-            deviceStatusText.textContent = 'Device online';
+            deviceStatusIcon.src = 'assets/device_online.png';
+            deviceStatusIcon.alt = 'Device Online';
             break;
         case DeviceStatus.OFFLINE:
         case DeviceStatus.UNKNOWN:
         default:
-            deviceStatusDot.classList.add('device-offline');
-            deviceStatusText.textContent = 'Device offline';
+            deviceStatusIcon.src = 'assets/device_offline.png';
+            deviceStatusIcon.alt = 'Device Offline';
             break;
     }
 }
@@ -301,10 +299,11 @@ function initializeDeviceMonitoring() {
     lastDataTimestamp = 0;
     deviceStatusStartupComplete = false;
     
-    const deviceStatusDot = document.getElementById('device-status-dot');
-    const deviceStatusText = document.getElementById('device-status-text');
-    deviceStatusDot.className = 'status-dot device-offline';
-    deviceStatusText.textContent = 'Device offline';
+    const deviceStatusIcon = document.getElementById('device-status-icon');
+    if (deviceStatusIcon) {
+        deviceStatusIcon.src = 'assets/device_offline.png';
+        deviceStatusIcon.alt = 'Device Offline';
+    }
     
     // Changed timeout to match DEVICE_TIMEOUT (5 seconds)
     setTimeout(() => {

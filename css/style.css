@@ -57,14 +57,21 @@ body {
     font-size: 14px;
 }
 
-/* Added device status styles */
+/* Device status styles - updated for icons */
 .device-status {
+    position: absolute;
+    left: 20px;           /* Position from left edge */
+    top: 20px;            /* Move upward - adjust this value as needed */
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 10px;
-    margin-top: 5px;
     font-size: 14px;
+}
+
+.device-status-icon {
+    width: 70px;
+    height: 70px;
+    transition: opacity 0.3s ease;
 }
 
 .status-dot {
@@ -86,7 +93,7 @@ body {
     background: #f39c12;
 }
 
-/* Device status colors - removed device-stale */
+/* Legacy device status colors - kept for reference but not used with icons */
 .device-live {
     background: #27ae60;
     animation: pulse 1.5s infinite;

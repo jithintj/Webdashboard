@@ -1,5 +1,5 @@
 // js/classifier.js - OPTIMIZED
-// Sleep position classifier with reduced redundancy
+// Sleep position classifier with device icon support
 
 // Constants
 const POSITION_IMAGES = {
@@ -89,10 +89,10 @@ function initializeClassifierState() {
     toggleClassificationSection(false);
 }
 
-// Consolidated device status check
+// Updated device status check for icon-based system
 function isDeviceOnline() {
-    const deviceStatusDot = document.getElementById('device-status-dot');
-    return deviceStatusDot && deviceStatusDot.classList.contains('device-live');
+    const deviceStatusIcon = document.getElementById('device-status-icon');
+    return deviceStatusIcon && deviceStatusIcon.src.includes('device_online.png');
 }
 
 function isDataLive() {

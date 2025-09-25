@@ -21,10 +21,9 @@
         <span class="status-dot connecting" id="status-dot"></span>
         <span id="status-text">Connecting to database...</span>
       </div>
-      <!-- Added device status indicator -->
+      <!-- Updated device status to use icons instead of dot and text -->
       <div class="device-status">
-        <span class="status-dot device-offline" id="device-status-dot"></span>
-        <span id="device-status-text">Device offline</span>
+        <img src="assets/device_offline.png" alt="Device Status" class="device-status-icon" id="device-status-icon">
       </div>
       <button class="tare-button" id="tare-button">TARE SCALES</button>
     </header>
@@ -117,7 +116,7 @@
   <script src="js/chart-config.js"></script>
   <script src="js/app.js"></script>
   
-  <!-- ADD THIS LINE - Sleep Position Classifier -->
+  <!-- Sleep Position Classifier -->
   <script src="js/classifier.js"></script>
 </body>
 </html>
