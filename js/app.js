@@ -1,20 +1,19 @@
 // --------------------
 // js/app.js - OPTIMIZED
 // Handles real-time data, UI updates, zoom/pan, and controls
-// Reduced redundancy in device monitoring and data processing
+// Simplified device status: only online/offline with 5-second timeout
 // --------------------
 
 // Global variables
 let lastDataTimestamp = 0;
 let deviceStatusCheckInterval;
-const DEVICE_TIMEOUT = 10000;
+const DEVICE_TIMEOUT = 5000; // Changed to 5 seconds
 let deviceStatusStartupComplete = false;
 
-// Consolidated device status management
+// Simplified device status management - removed STALE
 const DeviceStatus = {
     UNKNOWN: 'unknown',
     LIVE: 'live',
-    STALE: 'stale',
     OFFLINE: 'offline'
 };
 
@@ -254,7 +253,7 @@ function zoomChart(scaleFactor, centerIndex = null) {
     updateChartData();
 }
 
-// Consolidated device status monitoring
+// Simplified device status monitoring - removed stale condition
 function getDeviceStatus() {
     if (!deviceStatusStartupComplete) {
         return DeviceStatus.UNKNOWN;
@@ -266,10 +265,9 @@ function getDeviceStatus() {
     
     const timeSinceLastUpdate = Date.now() - lastDataTimestamp;
     
-    if (timeSinceLastUpdate < 5000) {
+    // Simplified: only check if within 5 seconds for live, otherwise offline
+    if (timeSinceLastUpdate < DEVICE_TIMEOUT) {
         return DeviceStatus.LIVE;
-    } else if (timeSinceLastUpdate < DEVICE_TIMEOUT) {
-        return DeviceStatus.STALE;
     } else {
         return DeviceStatus.OFFLINE;
     }
@@ -280,23 +278,17 @@ function monitorDeviceStatus() {
     const deviceStatusText = document.getElementById('device-status-text');
     
     // Remove all status classes
-    deviceStatusDot.classList.remove('device-live', 'device-stale', 'device-offline');
+    deviceStatusDot.classList.remove('device-live', 'device-offline');
     
     const status = getDeviceStatus();
     
+    // Simplified switch - removed stale case
     switch(status) {
         case DeviceStatus.LIVE:
             deviceStatusDot.classList.add('device-live');
             deviceStatusText.textContent = 'Device online';
             break;
-        case DeviceStatus.STALE:
-            deviceStatusDot.classList.add('device-stale');
-            deviceStatusText.textContent = 'Device stale';
-            break;
         case DeviceStatus.OFFLINE:
-            deviceStatusDot.classList.add('device-offline');
-            deviceStatusText.textContent = 'Device offline';
-            break;
         case DeviceStatus.UNKNOWN:
         default:
             deviceStatusDot.classList.add('device-offline');
@@ -314,6 +306,7 @@ function initializeDeviceMonitoring() {
     deviceStatusDot.className = 'status-dot device-offline';
     deviceStatusText.textContent = 'Device offline';
     
+    // Changed timeout to match DEVICE_TIMEOUT (5 seconds)
     setTimeout(() => {
         deviceStatusStartupComplete = true;
     }, DEVICE_TIMEOUT);

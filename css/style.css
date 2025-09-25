@@ -86,14 +86,10 @@ body {
     background: #f39c12;
 }
 
-/* Added device status colors */
+/* Device status colors - removed device-stale */
 .device-live {
     background: #27ae60;
     animation: pulse 1.5s infinite;
-}
-
-.device-stale {
-    background: #f39c12;
 }
 
 .device-offline {
@@ -347,23 +343,21 @@ body {
 
 /* Animation for value updates */
 .value-change {
-    animation: pulse 0.3s ease-in-out;
+    animation: valueChange 0.3s ease-in-out;
 }
 
-@keyframes pulse {
+@keyframes valueChange {
     0% { transform: scale(1); }
     50% { transform: scale(1.02); }
     100% { transform: scale(1); }
 }
 
-/* Enhanced pulse animation for live status */
+/* Pulse animation for live status */
 @keyframes pulse {
     0% { opacity: 1; }
     50% { opacity: 0.5; }
     100% { opacity: 1; }
 }
-
-/* ADD ALL THE CLASSIFICATION CSS HERE - RIGHT BEFORE THE MEDIA QUERIES */
 
 /* Classification section styles */
 .classification-container {
