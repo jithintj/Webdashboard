@@ -60,8 +60,8 @@ body {
 /* Device status styles - updated for icons */
 .device-status {
     position: absolute;
-    left: 20px;           /* Position from left edge */
-    top: 20px;            /* Move upward - adjust this value as needed */
+    left: 20px;      
+    top: 20px;
     display: flex;
     align-items: center;
     gap: 10px;
