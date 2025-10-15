@@ -409,7 +409,7 @@ function handleTareCompletion(tareButton, tareStatus, listener) {
     
     setTimeout(() => {
         tareButton.disabled = false;
-        tareButton.textContent = "TARE SCALES";
+        tareButton.textContent = "TARE BED";
         tareStatus.style.display = 'none';
     }, 3000);
 }
@@ -419,7 +419,7 @@ function handleTareTimeout(tareButton, tareStatus) {
     tareStatus.textContent = 'Tare timeout! Please check device connection.';
     tareStatus.style.color = '#e74c3c';
     tareButton.disabled = false;
-    tareButton.textContent = 'TARE SCALES';
+    tareButton.textContent = 'TARE BED';
     setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
 }
 
@@ -430,7 +430,7 @@ function handleTareError(error, tareButton, tareStatus) {
     tareStatus.style.color = '#e74c3c';
     tareStatus.style.display = 'block';
     tareButton.disabled = false;
-    tareButton.textContent = 'TARE SCALES';
+    tareButton.textContent = 'TARE BED';
     setTimeout(() => { tareStatus.style.display = 'none'; }, 3000);
 }
 
