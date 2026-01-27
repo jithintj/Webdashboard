@@ -26,7 +26,7 @@ function initChart() {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.08)' }, title: { display: true, text: 'Weight (grams)' } },
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.08)' }, title: { display: true, text: 'Weight (Kg)' } },
         x: { grid: { color: 'rgba(0,0,0,0.08)' }, title: { display: true, text: 'Time' } }
       },
       plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
