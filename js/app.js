@@ -63,6 +63,11 @@ function loadHistoricalData() {
             allHistoricalData.sort((a, b) => a.key.localeCompare(b.key));
             updateDataPointsCount();
             updateChartData();
+            
+            // Update vital charts with loaded data
+            if (typeof updateVitalCharts === 'function') {
+                updateVitalCharts(allHistoricalData);
+            }
         })
         .catch(handleDataError);
 }
@@ -77,7 +82,9 @@ function createDataPoint(key, data) {
         lh: data.lh || 0,
         rt: data.rt || 0,
         lt: data.lt || 0,
-        total: data.total || 0
+        total: data.total || 0,
+        br: data.br || 0,  // Add breathing rate
+        hr: data.hr || 0   // Add heart rate
     };
 }
 
@@ -116,6 +123,11 @@ function processDataPoint(data, key) {
         panOffset = 0;
         updateChartData();
     }
+    
+    // Update vital charts if they exist
+    if (typeof updateVitalCharts === 'function') {
+        updateVitalCharts(allHistoricalData);
+    }
 }
 
 
@@ -131,6 +143,7 @@ function updateSensorValues(data) {
         { id: 'rt-value', value: data.rt },
         { id: 'lt-value', value: data.lt },
         { id: 'total-value', value: data.total }
+        // Note: br and hr values are handled in vital-charts.js
     ];
 
     sensors.forEach(sensor => {
@@ -162,6 +175,11 @@ function updateChartData() {
     updateChartDataset(displayData);
     updateChartYAxis(displayData);
     weightChart.update('none');
+    
+    // Update vital charts if they exist
+    if (typeof updateVitalCharts === 'function') {
+        updateVitalCharts(allHistoricalData);
+    }
 }
 
 
@@ -239,6 +257,11 @@ function loadOlderData() {
                 updateDataPointsCount();
                 panOffset = allHistoricalData.length - newData.length;
                 updateChartData();
+                
+                // Update vital charts with new data
+                if (typeof updateVitalCharts === 'function') {
+                    updateVitalCharts(allHistoricalData);
+                }
             }
 
             isLoadingMoreData = false;
@@ -451,6 +474,11 @@ function handleDataError(error) {
 
 window.onload = function () {
     initChart();
+
+    // Initialize vital charts if the function exists
+    if (typeof initVitalCharts === 'function') {
+        initVitalCharts();
+    }
 
     const chartCanvas = document.getElementById('weight-chart');
 
