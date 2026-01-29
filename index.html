@@ -60,11 +60,23 @@
           <div class="card-value" id="lt-value">0.0</div>
           <div class="card-unit">Kg</div>
         </div>
+        <!-- ADDED: Heart Rate Card -->
+        <div class="reading-card card-hr">
+          <div class="card-title">HEART RATE</div>
+          <div class="card-value" id="hr-value">0.0</div>
+          <div class="card-unit">BPM</div>
+        </div>
+        <!-- ADDED: Breathing Rate Card -->
+        <div class="reading-card card-br">
+          <div class="card-title">BREATHING RATE</div>
+          <div class="card-value" id="br-value">0.0</div>
+          <div class="card-unit">BRPM</div>
+        </div>
       </div>
 
       <div class="chart-container">
         <div class="chart-header">
-          <h2 class="chart-title">Weight Distribution Over Time</h2>
+          <h2 class="chart-title">Weight Distribution</h2>
           <div class="chart-controls">
             <div class="time-window">
               <span>Show</span>
@@ -106,42 +118,8 @@
         </div>
       </div>
 
-      <!-- BREATHING RATE CHART -->
-      <div class="chart-container breathing-chart-container">
-        <div class="chart-header">
-          <h2 class="chart-title">Breathing Rate</h2>
-          <div class="chart-controls">
-            <div class="time-window">
-              <span>Show</span>
-              <input type="number" id="br-time-window" class="time-input" value="20" min="5" max="1000" />
-              <span>data points</span>
-            </div>
-            <div class="chart-actions">
-              <button class="nav-button" id="br-zoom-in">+</button>
-              <button class="nav-button" id="br-zoom-out">-</button>
-              <button class="nav-button" id="br-live-view">Live</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="chart-wrapper">
-          <canvas id="breathing-chart"></canvas>
-        </div>
-
-        <div class="current-reading">
-          <div class="reading-card" id="br-current-card">
-            <div class="card-title">CURRENT BREATHING RATE</div>
-            <div class="card-value" id="current-br-value">0.0</div>
-            <div class="card-unit">breaths/min</div>
-          </div>
-        </div>
-        
-        <!-- Add these controls for consistency with weight chart -->
-        <div class="stats-info" id="br-stats-info">Live breathing rate data</div>
-      </div>
-
-      <!-- HEART RATE CHART -->
-      <div class="chart-container heart-chart-container">
+      <!-- ADDED: Heart Rate Chart -->
+      <div class="chart-container biometric-chart">
         <div class="chart-header">
           <h2 class="chart-title">Heart Rate</h2>
           <div class="chart-controls">
@@ -150,28 +128,38 @@
               <input type="number" id="hr-time-window" class="time-input" value="20" min="5" max="1000" />
               <span>data points</span>
             </div>
-            <div class="chart-actions">
-              <button class="nav-button" id="hr-zoom-in">+</button>
-              <button class="nav-button" id="hr-zoom-out">-</button>
-              <button class="nav-button" id="hr-live-view">Live</button>
+          </div>
+        </div>
+
+        <div class="chart-wrapper">
+          <canvas id="hr-chart"></canvas>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><div class="legend-color legend-hr"></div><span>Heart Rate</span></div>
+        </div>
+      </div>
+
+      <!-- ADDED: Breathing Rate Chart -->
+      <div class="chart-container biometric-chart">
+        <div class="chart-header">
+          <h2 class="chart-title">Breathing Rate</h2>
+          <div class="chart-controls">
+            <div class="time-window">
+              <span>Show</span>
+              <input type="number" id="br-time-window" class="time-input" value="20" min="5" max="1000" />
+              <span>data points</span>
             </div>
           </div>
         </div>
 
         <div class="chart-wrapper">
-          <canvas id="heart-chart"></canvas>
+          <canvas id="br-chart"></canvas>
         </div>
 
-        <div class="current-reading">
-          <div class="reading-card" id="hr-current-card">
-            <div class="card-title">CURRENT HEART RATE</div>
-            <div class="card-value" id="current-hr-value">0.0</div>
-            <div class="card-unit">bpm</div>
-          </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-color legend-br"></div><span>Breathing Rate</span></div>
         </div>
-        
-        <!-- Add these controls for consistency with weight chart -->
-        <div class="stats-info" id="hr-stats-info">Live heart rate data</div>
       </div>
     </main>
 
@@ -187,7 +175,6 @@
   <!-- Project JavaScript (order matters) -->
   <script src="js/firebase-config.js"></script>
   <script src="js/chart-config.js"></script>
-  <script src="js/vital-charts.js"></script>
   <script src="js/app.js"></script>
   
   <!-- Sleep Position Classifier -->

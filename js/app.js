@@ -63,17 +63,14 @@ function loadHistoricalData() {
             allHistoricalData.sort((a, b) => a.key.localeCompare(b.key));
             updateDataPointsCount();
             updateChartData();
-            
-            // Update vital charts with loaded data
-            if (typeof updateVitalCharts === 'function') {
-                updateVitalCharts(allHistoricalData);
-            }
+            updateHRChartData();    // NEW
+            updateBRChartData();    // NEW
         })
         .catch(handleDataError);
 }
 
 
-// Consolidated data point creation
+// Consolidated data point creation - UPDATED
 function createDataPoint(key, data) {
     return {
         key: key,
@@ -83,8 +80,8 @@ function createDataPoint(key, data) {
         rt: data.rt || 0,
         lt: data.lt || 0,
         total: data.total || 0,
-        br: data.br || 0,  // Add breathing rate
-        hr: data.hr || 0   // Add heart rate
+        hr: data.hr || 0,  // NEW: Heart rate
+        br: data.br || 0   // NEW: Breathing rate
     };
 }
 
@@ -121,12 +118,11 @@ function processDataPoint(data, key) {
 
     if (isAutoScroll) {
         panOffset = 0;
+        hrPanOffset = 0;  // NEW
+        brPanOffset = 0;  // NEW
         updateChartData();
-    }
-    
-    // Update vital charts if they exist
-    if (typeof updateVitalCharts === 'function') {
-        updateVitalCharts(allHistoricalData);
+        updateHRChartData();  // NEW
+        updateBRChartData();  // NEW
     }
 }
 
@@ -135,15 +131,16 @@ function processDataPoint(data, key) {
 // UI UPDATE FUNCTIONS
 // --------------------
 
-// Consolidated UI value updates
+// Consolidated UI value updates - UPDATED
 function updateSensorValues(data) {
     const sensors = [
         { id: 'rh-value', value: data.rh },
         { id: 'lh-value', value: data.lh },
         { id: 'rt-value', value: data.rt },
         { id: 'lt-value', value: data.lt },
-        { id: 'total-value', value: data.total }
-        // Note: br and hr values are handled in vital-charts.js
+        { id: 'total-value', value: data.total },
+        { id: 'hr-value', value: data.hr },  // NEW
+        { id: 'br-value', value: data.br }   // NEW
     ];
 
     sensors.forEach(sensor => {
@@ -175,11 +172,6 @@ function updateChartData() {
     updateChartDataset(displayData);
     updateChartYAxis(displayData);
     weightChart.update('none');
-    
-    // Update vital charts if they exist
-    if (typeof updateVitalCharts === 'function') {
-        updateVitalCharts(allHistoricalData);
-    }
 }
 
 
@@ -219,16 +211,91 @@ function updateChartYAxis(displayData) {
 
 
 // --------------------
+// HR/BR CHART FUNCTIONS - NEW SECTION
+// --------------------
+
+function getHRDisplayData() {
+    let start = Math.max(0, allHistoricalData.length - hrDataWindow - hrPanOffset);
+    let end = Math.min(allHistoricalData.length, start + hrDataWindow);
+    
+    if (end - start < hrDataWindow) {
+        start = Math.max(0, end - hrDataWindow);
+    }
+    
+    return allHistoricalData.slice(start, end);
+}
+
+function getBRDisplayData() {
+    let start = Math.max(0, allHistoricalData.length - brDataWindow - brPanOffset);
+    let end = Math.min(allHistoricalData.length, start + brDataWindow);
+    
+    if (end - start < brDataWindow) {
+        start = Math.max(0, end - brDataWindow);
+    }
+    
+    return allHistoricalData.slice(start, end);
+}
+
+function updateHRChartData() {
+    if (allHistoricalData.length === 0 || !hrChart) return;
+    
+    const displayData = getHRDisplayData();
+    
+    hrChart.data.labels = displayData.map(item => item.timestamp);
+    hrChart.data.datasets[0].data = displayData.map(item => item.hr);
+    
+    // Update Y-axis scale
+    const allValues = displayData.map(item => item.hr);
+    hrChart.options.scales.y.suggestedMax = Math.max(...allValues, 10) * 1.1;
+    
+    hrChart.update('none');
+}
+
+function updateBRChartData() {
+    if (allHistoricalData.length === 0 || !brChart) return;
+    
+    const displayData = getBRDisplayData();
+    
+    brChart.data.labels = displayData.map(item => item.timestamp);
+    brChart.data.datasets[0].data = displayData.map(item => item.br);
+    
+    // Update Y-axis scale
+    const allValues = displayData.map(item => item.br);
+    brChart.options.scales.y.suggestedMax = Math.max(...allValues, 10) * 1.1;
+    
+    brChart.update('none');
+}
+
+function resetHRToLiveView() {
+    hrPanOffset = 0;
+    hrDataWindow = 20;
+    document.getElementById('hr-time-window').value = hrDataWindow;
+    updateHRChartData();
+}
+
+function resetBRToLiveView() {
+    brPanOffset = 0;
+    brDataWindow = 20;
+    document.getElementById('br-time-window').value = brDataWindow;
+    updateBRChartData();
+}
+
+
+// --------------------
 // CHART NAVIGATION AND ZOOM
 // --------------------
 
 function resetToLiveView() {
     isAutoScroll = true;
     panOffset = 0;
+    hrPanOffset = 0;  // NEW
+    brPanOffset = 0;  // NEW
     currentDataWindow = 20;
     zoomLevel = 1;
     document.getElementById('time-window').value = currentDataWindow;
     updateChartData();
+    updateHRChartData();  // NEW
+    updateBRChartData();  // NEW
 }
 
 
@@ -256,12 +323,11 @@ function loadOlderData() {
                 allHistoricalData = newData.concat(allHistoricalData);
                 updateDataPointsCount();
                 panOffset = allHistoricalData.length - newData.length;
+                hrPanOffset = panOffset;  // NEW
+                brPanOffset = panOffset;  // NEW
                 updateChartData();
-                
-                // Update vital charts with new data
-                if (typeof updateVitalCharts === 'function') {
-                    updateVitalCharts(allHistoricalData);
-                }
+                updateHRChartData();  // NEW
+                updateBRChartData();  // NEW
             }
 
             isLoadingMoreData = false;
@@ -302,11 +368,16 @@ function zoomChart(scaleFactor, centerIndex = null) {
     const centerPosition = allHistoricalData.length - panOffset - currentDataWindow / 2;
     panOffset = Math.max(0, Math.min(allHistoricalData.length - newDataWindow,
         allHistoricalData.length - centerPosition - newDataWindow / 2));
+    
+    hrPanOffset = panOffset;  // NEW
+    brPanOffset = panOffset;  // NEW
 
     currentDataWindow = newDataWindow;
     document.getElementById('time-window').value = currentDataWindow;
     zoomLevel = 1000 / currentDataWindow;
     updateChartData();
+    updateHRChartData();  // NEW
+    updateBRChartData();  // NEW
 }
 
 
@@ -474,11 +545,8 @@ function handleDataError(error) {
 
 window.onload = function () {
     initChart();
-
-    // Initialize vital charts if the function exists
-    if (typeof initVitalCharts === 'function') {
-        initVitalCharts();
-    }
+    initHRChart();  // NEW
+    initBRChart();  // NEW
 
     const chartCanvas = document.getElementById('weight-chart');
 
@@ -509,7 +577,11 @@ window.onload = function () {
                 const dataPointsToPan = Math.round(dx / 15);
                 panOffset = Math.max(0, Math.min(allHistoricalData.length - currentDataWindow, 
                     dragStartPanOffset + dataPointsToPan));
+                hrPanOffset = panOffset;  // NEW
+                brPanOffset = panOffset;  // NEW
                 updateChartData();
+                updateHRChartData();  // NEW
+                updateBRChartData();  // NEW
             }
         },
         { 
@@ -534,9 +606,33 @@ window.onload = function () {
             handler: function () {
                 currentDataWindow = parseInt(this.value) || 20;
                 panOffset = 0;
+                hrPanOffset = 0;  // NEW
+                brPanOffset = 0;  // NEW
                 isAutoScroll = true;
                 zoomLevel = 1;
                 updateChartData();
+                updateHRChartData();  // NEW
+                updateBRChartData();  // NEW
+            }
+        },
+        // NEW: HR time window control
+        { 
+            element: 'hr-time-window', 
+            event: 'input', 
+            handler: function () {
+                hrDataWindow = parseInt(this.value) || 20;
+                hrPanOffset = 0;
+                updateHRChartData();
+            }
+        },
+        // NEW: BR time window control
+        { 
+            element: 'br-time-window', 
+            event: 'input', 
+            handler: function () {
+                brDataWindow = parseInt(this.value) || 20;
+                brPanOffset = 0;
+                updateBRChartData();
             }
         },
         { 
@@ -558,7 +654,11 @@ window.onload = function () {
             handler: () => { 
                 isAutoScroll = false; 
                 panOffset = Math.max(0, panOffset - currentDataWindow); 
-                updateChartData(); 
+                hrPanOffset = panOffset;  // NEW
+                brPanOffset = panOffset;  // NEW
+                updateChartData();
+                updateHRChartData();  // NEW
+                updateBRChartData();  // NEW
             }
         },
         { 

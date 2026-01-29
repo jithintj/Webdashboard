@@ -9,6 +9,8 @@
     --grid-color: #ecf0f1;
     --text-color: #2c3e50;
     --card-bg: #ffffff;
+    --hr-color: #e91e63;      /* ADDED: Heart rate color */
+    --br-color: #00bcd4;      /* ADDED: Breathing rate color */
 }
 
 * {
@@ -167,7 +169,7 @@ body {
 
 .current-readings {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(7, 1fr);  /* CHANGED: from 5 to 7 columns */
     gap: 12px;
     margin-bottom: 20px;
 }
@@ -179,12 +181,6 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     text-align: center;
     border-top: 3px solid;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.reading-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
 .card-total { border-top-color: var(--total-color); }
@@ -192,31 +188,25 @@ body {
 .card-lh    { border-top-color: var(--lh-color); }
 .card-rt    { border-top-color: var(--rt-color); }
 .card-lt    { border-top-color: var(--lt-color); }
+.card-hr    { border-top-color: var(--hr-color); }  /* ADDED: Heart rate card */
+.card-br    { border-top-color: var(--br-color); }  /* ADDED: Breathing rate card */
 
 .card-title {
     font-size: 12px;
     font-weight: 600;
     margin-bottom: 8px;
     color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .card-value {
     font-size: 20px;
     font-weight: bold;
     margin: 5px 0;
-    min-height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .card-unit {
     color: #7f8c8d;
     font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
 }
 
 .chart-container {
@@ -225,12 +215,6 @@ body {
     padding: 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     margin-bottom: 20px;
-    transition: transform 0.2s ease;
-}
-
-.chart-container:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
 }
 
 .chart-header {
@@ -252,7 +236,6 @@ body {
     display: flex;
     gap: 10px;
     align-items: center;
-    flex-wrap: wrap;
 }
 
 .time-window {
@@ -269,14 +252,6 @@ body {
     border: 1px solid #ddd;
     border-radius: 4px;
     text-align: center;
-    font-family: inherit;
-    font-size: 12px;
-    transition: border-color 0.2s ease;
-}
-
-.time-input:focus {
-    outline: none;
-    border-color: var(--secondary);
 }
 
 .chart-wrapper {
@@ -287,7 +262,6 @@ body {
     border-radius: 8px;
     padding: 10px;
     overflow: hidden;
-    background: #fafafa;
 }
 
 .legend {
@@ -306,24 +280,16 @@ body {
     padding: 4px 8px;
     background: var(--grid-color);
     border-radius: 15px;
-    transition: transform 0.2s ease;
 }
 
-.legend-item:hover {
-    transform: translateY(-1px);
-}
-
-.legend-color { 
-    width: 12px; 
-    height: 12px; 
-    border-radius: 2px;
-    transition: transform 0.2s ease;
-}
+.legend-color { width: 12px; height: 12px; border-radius: 2px; }
 .legend-total { background-color: var(--total-color); }
 .legend-rh    { background-color: var(--rh-color); }
 .legend-lh    { background-color: var(--lh-color); }
 .legend-rt    { background-color: var(--rt-color); }
 .legend-lt    { background-color: var(--lt-color); }
+.legend-hr    { background-color: var(--hr-color); }  /* ADDED: Heart rate legend */
+.legend-br    { background-color: var(--br-color); }  /* ADDED: Breathing rate legend */
 
 .footer {
     background: var(--grid-color);
@@ -331,31 +297,15 @@ body {
     text-align: center;
     color: #7f8c8d;
     font-size: 12px;
-    border-top: 1px solid #e0e0e0;
 }
 
-.timestamp { 
-    margin-top: 8px; 
-    font-size: 11px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.timestamp span {
-    font-weight: 600;
-    color: var(--text-color);
-}
+.timestamp { margin-top: 8px; font-size: 11px; }
 
 .stats-info {
     text-align: center;
     margin-top: 10px;
     font-size: 12px;
     color: #7f8c8d;
-    font-style: italic;
-    min-height: 18px;
 }
 
 .tare-status {
@@ -364,10 +314,6 @@ body {
     font-size: 12px;
     color: #27ae60;
     font-weight: 500;
-    padding: 8px;
-    border-radius: 4px;
-    background: rgba(39, 174, 96, 0.1);
-    transition: opacity 0.3s ease;
 }
 
 .navigation-controls {
@@ -375,7 +321,6 @@ body {
     justify-content: center;
     gap: 10px;
     margin-top: 15px;
-    flex-wrap: wrap;
 }
 
 .nav-button {
@@ -386,23 +331,9 @@ body {
     border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 32px;
 }
 
-.nav-button:hover { 
-    background: #2980b9;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(41, 128, 185, 0.3);
-}
-
-.nav-button:active {
-    transform: translateY(0);
-}
+.nav-button:hover { background: #2980b9; }
 
 .loading-indicator {
     text-align: center;
@@ -410,10 +341,6 @@ body {
     color: var(--secondary);
     font-size: 14px;
     display: none;
-    font-style: italic;
-    padding: 8px;
-    background: rgba(52, 152, 219, 0.1);
-    border-radius: 4px;
 }
 
 .zoom-controls {
@@ -421,24 +348,21 @@ body {
     justify-content: center;
     gap: 10px;
     margin-top: 10px;
-    flex-wrap: wrap;
 }
 
 /* Animation for value updates */
-.value-change { 
-    animation: valueChange 0.3s ease-in-out; 
-}
+.value-change { animation: valueChange 0.3s ease-in-out; }
 
 @keyframes valueChange {
     0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    50% { transform: scale(1.02); }
     100% { transform: scale(1); }
 }
 
 /* Pulse animation for live status */
 @keyframes pulse {
     0% { opacity: 1; }
-    50% { opacity: 0.7; }
+    50% { opacity: 0.5; }
     100% { opacity: 1; }
 }
 
@@ -472,14 +396,12 @@ body {
     padding: 4px 8px;
     border-radius: 4px;
     background: #f8f9fa;
-    border: 1px solid #e9ecef;
 }
 
 .position-visualization {
     display: flex;
     gap: 20px;
     align-items: flex-start;
-    flex-wrap: wrap;
 }
 
 .position-image-container {
@@ -493,11 +415,6 @@ body {
     height: auto;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
-}
-
-.position-image:hover {
-    transform: scale(1.02);
 }
 
 .position-confidence {
@@ -506,10 +423,7 @@ body {
     font-weight: 500;
 }
 
-.position-details { 
-    flex: 1;
-    min-width: 300px;
-}
+.position-details { flex: 1; }
 
 .current-position {
     font-size: 18px;
@@ -519,23 +433,17 @@ body {
     background: #f8f9fa;
     border-radius: 6px;
     text-align: center;
-    border-left: 4px solid var(--secondary);
 }
 
 .position-history h3 {
     font-size: 14px;
     margin-bottom: 10px;
     color: #7f8c8d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .history-timeline {
     max-height: 200px;
     overflow-y: auto;
-    border: 1px solid #eee;
-    border-radius: 6px;
-    padding: 10px;
 }
 
 .history-item {
@@ -546,125 +454,15 @@ body {
     display: flex;
     justify-content: space-between;
     font-size: 12px;
-    transition: background 0.2s ease;
 }
 
-.history-item:hover {
-    background: #e9ecef;
-}
-
-.history-time { 
-    color: #7f8c8d; 
-    flex: 0 0 60px;
-    font-family: 'Monaco', 'Courier New', monospace;
-}
-.history-position { 
-    flex: 1; 
-    font-weight: 500;
-    padding: 0 10px;
-}
-.history-confidence { 
-    flex: 0 0 40px; 
-    text-align: right;
-    font-weight: 600;
-}
-
-/* VITAL CHARTS SPECIFIC STYLES */
-.breathing-chart-container .reading-card {
-    border-top-color: #3498db; /* Blue for breathing */
-    background: rgba(52, 152, 219, 0.03);
-}
-
-.heart-chart-container .reading-card {
-    border-top-color: #e74c3c; /* Red for heart */
-    background: rgba(231, 76, 60, 0.03);
-}
-
-.current-reading {
-    display: flex;
-    justify-content: center;
-    margin-top: 15px;
-}
-
-.current-reading .reading-card {
-    min-width: 220px;
-    text-align: center;
-    padding: 15px 25px;
-}
-
-.chart-actions {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-}
-
-.chart-actions .nav-button {
-    padding: 4px 10px;
-    font-size: 11px;
-    min-width: 36px;
-    font-weight: bold;
-    transition: all 0.2s ease;
-    border-radius: 3px;
-}
-
-.chart-actions .nav-button:hover {
-    background: #2980b9;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(41, 128, 185, 0.3);
-}
-
-/* Status colors for vital signs */
-.status-normal {
-    color: #27ae60 !important;
-}
-
-.status-warning {
-    color: #f39c12 !important;
-}
-
-.status-alert {
-    color: #e74c3c !important;
-    animation: pulse 1.5s infinite;
-}
-
-/* Chart canvas cursor styling */
-#breathing-chart, #heart-chart {
-    cursor: crosshair;
-}
-
-/* Highlight active time input */
-.time-input:focus {
-    border-color: var(--secondary);
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-}
-
-/* Smooth transitions for all interactive elements */
-.reading-card, .nav-button, .legend-item, .time-input {
-    transition: all 0.2s ease;
-}
-
-/* Data point count styling */
-#data-points {
-    font-weight: 700;
-    color: var(--primary);
-    background: rgba(44, 62, 80, 0.1);
-    padding: 2px 6px;
-    border-radius: 3px;
-}
+.history-time { color: #7f8c8d; flex: 0 0 60px; }
+.history-position { flex: 1; font-weight: 500; }
+.history-confidence { flex: 0 0 40px; text-align: right; }
 
 /* Responsive adjustments */
 @media (max-width: 1200px) {
-    .current-readings { 
-        grid-template-columns: repeat(3, 1fr); 
-    }
-    .position-visualization {
-        flex-direction: column;
-        align-items: center;
-    }
-    .position-image-container {
-        flex: 0 0 auto;
-        margin-bottom: 20px;
-    }
+    .current-readings { grid-template-columns: repeat(4, 1fr); }  /* CHANGED: from 3 to 4 */
 }
 
 @media (max-width: 768px) {
@@ -709,68 +507,35 @@ body {
         font-size: 12px;
     }
 
-    .current-readings { 
-        grid-template-columns: repeat(2, 1fr); 
-    }
+    .current-readings { grid-template-columns: repeat(2, 1fr); }
     
     .chart-header {
         flex-direction: column;
         text-align: center;
-        gap: 15px;
     }
     
-    .chart-controls { 
-        justify-content: center; 
-    }
+    .chart-controls { justify-content: center; }
     
-    .position-visualization { 
-        flex-direction: column; 
-    }
+    .position-visualization { flex-direction: column; }
     
     .position-image-container {
         flex: 0 0 auto;
-        margin: 0 auto 20px;
-    }
-    
-    .position-details {
-        min-width: 100%;
-    }
-    
-    .navigation-controls, .zoom-controls {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .nav-button {
-        width: 200px;
-        max-width: 100%;
-    }
-    
-    .current-reading .reading-card {
-        min-width: 180px;
-        padding: 12px 20px;
+        margin: 0 auto;
     }
 }
 
 @media (max-width: 480px) {
-    body {
-        padding: 10px;
-    }
-    
     .header {
         padding: 15px;
         padding-bottom: 50px;
     }
     
-    .header h1 { 
-        font-size: 20px; 
-    }
+    .header h1 { font-size: 20px; }
     
     .device-status-icon {
         width: 36px;
         height: 24px; /* 3:2 ratio */
     }
-    
     .database-status-icon {
         width: 30px;
         height: 30px; /* square */
@@ -784,42 +549,5 @@ body {
     .current-readings {
         grid-template-columns: 1fr;
         gap: 8px;
-    }
-    
-    .main-content {
-        padding: 15px;
-    }
-    
-    .chart-container {
-        padding: 15px;
-    }
-    
-    .chart-wrapper {
-        height: 350px;
-    }
-    
-    .legend {
-        gap: 8px;
-    }
-    
-    .legend-item {
-        font-size: 11px;
-        padding: 3px 6px;
-    }
-    
-    .timestamp {
-        flex-direction: column;
-        gap: 5px;
-    }
-    
-    .current-reading .reading-card {
-        min-width: 160px;
-        padding: 10px 15px;
-    }
-    
-    .chart-actions .nav-button {
-        min-width: 32px;
-        padding: 3px 8px;
-        font-size: 10px;
     }
 }
