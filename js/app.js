@@ -191,11 +191,10 @@ function updateChartDataset(displayData) {
     weightChart.data.labels = displayData.map(item => item.timestamp);
     
     const datasets = [
-        { index: 0, key: 'total' },
-        { index: 1, key: 'rh' },
-        { index: 2, key: 'lh' },
-        { index: 3, key: 'rt' },
-        { index: 4, key: 'lt' }
+        { index: 0, key: 'rh' },
+        { index: 1, key: 'lh' },
+        { index: 2, key: 'rt' },
+        { index: 3, key: 'lt' }
     ];
 
     datasets.forEach(dataset => {
@@ -205,7 +204,7 @@ function updateChartDataset(displayData) {
 
 
 function updateChartYAxis(displayData) {
-    const allValues = displayData.flatMap(item => [item.total, item.rh, item.lh, item.rt, item.lt]);
+    const allValues = displayData.flatMap(item => [item.rh, item.lh, item.rt, item.lt]);
     weightChart.options.scales.y.suggestedMax = Math.max(...allValues, 10) * 1.1;
 }
 

@@ -24,7 +24,6 @@ function initChart() {
   weightChart = new Chart(ctx, {
     type: 'line',
     data: { labels: [], datasets: [
-      { label: 'Total Weight', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.1)', borderWidth: 3, tension: 0.3, pointRadius: 2 },
       { label: 'Right Head', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', borderWidth: 2, tension: 0.3, pointRadius: 2 },
       { label: 'Left Head', data: [], borderColor: '#27ae60', backgroundColor: 'rgba(39,174,96,0.1)', borderWidth: 2, tension: 0.3, pointRadius: 2 },
       { label: 'Right Tail', data: [], borderColor: '#9b59b6', backgroundColor: 'rgba(155,89,182,0.1)', borderWidth: 2, tension: 0.3, pointRadius: 2 },
