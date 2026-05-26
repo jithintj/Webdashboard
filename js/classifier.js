@@ -89,10 +89,13 @@ function initializeClassifierState() {
     toggleClassificationSection(false);
 }
 
-// Updated device status check for icon-based system
+// FIX: replaced fragile icon src string check with proper timestamp-based check
+// using lastDataTimestamp from app.js — avoids breakage if image path changes
 function isDeviceOnline() {
-    const deviceStatusIcon = document.getElementById('device-status-icon');
-    return deviceStatusIcon && deviceStatusIcon.src.includes('device_online.png');
+    return typeof lastDataTimestamp !== 'undefined' &&
+           typeof DEVICE_TIMEOUT !== 'undefined' &&
+           lastDataTimestamp > 0 &&
+           (Date.now() - lastDataTimestamp < DEVICE_TIMEOUT);
 }
 
 function isDataLive() {
@@ -356,8 +359,12 @@ function processDataForClassification(data) {
     if (!deviceOnline) return;
     
     updateClassificationStatus(isDataLive());
+
+    // FIX: compute total here since it's not in the Firebase record;
+    // matches the same computation done in app.js createDataPoint()
+    const total = (data.rh || 0) + (data.lh || 0) + (data.rt || 0) + (data.lt || 0);
     
-    const classification = classifySleepPosition(data.rh, data.lh, data.rt, data.lt, data.total);
+    const classification = classifySleepPosition(data.rh, data.lh, data.rt, data.lt, total);
     updatePositionDisplay(classification.position, classification.confidence, classification.debug);
 }
 

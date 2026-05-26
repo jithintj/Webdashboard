@@ -67,7 +67,11 @@ function initHRChart() {
       maintainAspectRatio: false,
       scales: {
         y: { 
-          beginAtZero: true, 
+          // FIX: beginAtZero set to false for HR — real HR values are 40–120 BPM,
+          // starting from 0 compresses the chart and makes variation hard to see.
+          // suggestedMin: 40 provides a sensible baseline for heart rate data.
+          beginAtZero: false,
+          suggestedMin: 40,
           grid: { color: 'rgba(0,0,0,0.08)' }, 
           title: { display: true, text: 'Heart Rate (BPM)' } 
         },

@@ -1,14 +1,14 @@
 // --------------------
 // js/app.js - OPTIMIZED
 // Handles real-time data, UI updates, zoom/pan, and controls
-// Simplified device status: only online/offline with 5-second timeout using icons
+// Simplified device status: only online/offline with 12-second timeout using icons
 // Updated database connection status to use icons instead of text
 // --------------------
 
 // Global variables
 let lastDataTimestamp = 0;
 let deviceStatusCheckInterval;
-const DEVICE_TIMEOUT = 5000; // 5 seconds
+const DEVICE_TIMEOUT = 12000; // FIX: increased from 5000 to 12000ms to avoid false offline status
 let deviceStatusStartupComplete = false;
 
 
@@ -45,14 +45,16 @@ function setupDataListening() {
     });
 
     // Load initial history and subscribe to new points
+    // FIX: corrected path from 'patient/readings' to 'bed_1/vitals/readings'
     loadHistoricalData();
-    database.ref('patient/readings').orderByKey().limitToLast(1)
+    database.ref('bed_1/vitals/readings').orderByKey().limitToLast(1)
         .on('child_added', (snapshot) => processDataPoint(snapshot.val(), snapshot.key));
 }
 
 
 function loadHistoricalData() {
-    database.ref('patient/readings').orderByKey().limitToLast(1000).once('value')
+    // FIX: corrected path from 'patient/readings' to 'bed_1/vitals/readings'
+    database.ref('bed_1/vitals/readings').orderByKey().limitToLast(1000).once('value')
         .then((snapshot) => {
             allHistoricalData = [];
             snapshot.forEach((childSnapshot) => {
@@ -72,16 +74,32 @@ function loadHistoricalData() {
 
 // Consolidated data point creation - UPDATED
 function createDataPoint(key, data) {
+    // FIX: parse timestamp from key (format: "YYYY-MM-DD_HH-MM-SS")
+    // since firmware does not write a timestamp field inside the record
+    let timestamp = 'Unknown';
+    if (key && key.includes('_')) {
+        const parts = key.split('_');
+        const datePart = parts[0];                        // "YYYY-MM-DD"
+        const timePart = parts[1].replace(/-/g, ':');    // "HH:MM:SS"
+        timestamp = datePart + ' ' + timePart;
+    }
+
+    // FIX: compute total from individual sensors since firmware never writes a 'total' field
+    const rh = data.rh || 0;
+    const lh = data.lh || 0;
+    const rt = data.rt || 0;
+    const lt = data.lt || 0;
+
     return {
         key: key,
-        timestamp: data.timestamp || 'Unknown',
-        rh: data.rh || 0,
-        lh: data.lh || 0,
-        rt: data.rt || 0,
-        lt: data.lt || 0,
-        total: data.total || 0,
-        hr: data.hr || 0,  // NEW: Heart rate
-        br: data.br || 0   // NEW: Breathing rate
+        timestamp: timestamp,
+        rh: rh,
+        lh: lh,
+        rt: rt,
+        lt: lt,
+        total: rh + lh + rt + lt,   // FIX: computed, not read from data
+        hr: data.hr || 0,
+        br: data.br || 0
     };
 }
 
@@ -95,8 +113,14 @@ function processDataPoint(data, key) {
     // Update UI values
     updateSensorValues(data);
     
-    // Update timestamp
-    const timestamp = data.timestamp || 'Unknown';
+    // FIX: parse timestamp from key instead of reading non-existent data.timestamp field
+    let timestamp = 'Unknown';
+    if (key && key.includes('_')) {
+        const parts = key.split('_');
+        const datePart = parts[0];
+        const timePart = parts[1].replace(/-/g, ':');
+        timestamp = datePart + ' ' + timePart;
+    }
     document.getElementById('timestamp').textContent = timestamp;
 
     // Send to classifier if available
@@ -133,20 +157,39 @@ function processDataPoint(data, key) {
 
 // Consolidated UI value updates - UPDATED
 function updateSensorValues(data) {
-    const sensors = [
-        { id: 'rh-value', value: data.rh },
-        { id: 'lh-value', value: data.lh },
-        { id: 'rt-value', value: data.rt },
-        { id: 'lt-value', value: data.lt },
-        { id: 'total-value', value: data.total },
-        { id: 'hr-value', value: data.hr },  // NEW
-        { id: 'br-value', value: data.br }   // NEW
+    const rh = data.rh || 0;
+    const lh = data.lh || 0;
+    const rt = data.rt || 0;
+    const lt = data.lt || 0;
+    const total = rh + lh + rt + lt; // FIX: compute total since it's not in Firebase data
+
+    const weightSensors = [
+        { id: 'rh-value',    value: rh },
+        { id: 'lh-value',    value: lh },
+        { id: 'rt-value',    value: rt },
+        { id: 'lt-value',    value: lt },
+        { id: 'total-value', value: total }
     ];
 
-    sensors.forEach(sensor => {
-        if (sensor.value !== undefined) {
-            const element = document.getElementById(sensor.id);
+    // FIX: hr and br are integers — display without decimal places
+    const vitalSensors = [
+        { id: 'hr-value', value: data.hr || 0 },
+        { id: 'br-value', value: data.br || 0 }
+    ];
+
+    weightSensors.forEach(sensor => {
+        const element = document.getElementById(sensor.id);
+        if (element) {
             element.textContent = sensor.value.toFixed(1);
+            element.classList.add('value-change');
+            setTimeout(() => element.classList.remove('value-change'), 300);
+        }
+    });
+
+    vitalSensors.forEach(sensor => {
+        const element = document.getElementById(sensor.id);
+        if (element) {
+            element.textContent = Math.round(sensor.value); // FIX: integer display for HR/BR
             element.classList.add('value-change');
             setTimeout(() => element.classList.remove('value-change'), 300);
         }
@@ -307,7 +350,8 @@ function loadOlderData() {
     const oldestKey = allHistoricalData[0].key;
     const dataPointsToLoad = parseInt(document.getElementById('time-window').value) || 20;
 
-    database.ref('patient/readings')
+    // FIX: corrected path from 'patient/readings' to 'bed_1/vitals/readings'
+    database.ref('bed_1/vitals/readings')
         .orderByKey()
         .endBefore(oldestKey)
         .limitToLast(dataPointsToLoad)
@@ -396,7 +440,7 @@ function getDeviceStatus() {
     
     const timeSinceLastUpdate = Date.now() - lastDataTimestamp;
     
-    // Simplified: only check if within 5 seconds for live, otherwise offline
+    // FIX: increased timeout from 5000 to 12000ms (DEVICE_TIMEOUT)
     if (timeSinceLastUpdate < DEVICE_TIMEOUT) {
         return DeviceStatus.LIVE;
     } else {
@@ -439,7 +483,7 @@ function initializeDeviceMonitoring() {
         deviceStatusIcon.alt = 'Device Offline';
     }
     
-    // Changed timeout to match DEVICE_TIMEOUT (5 seconds)
+    // Changed timeout to match DEVICE_TIMEOUT (12 seconds)
     setTimeout(() => {
         deviceStatusStartupComplete = true;
     }, DEVICE_TIMEOUT);
@@ -460,7 +504,8 @@ function sendTareCommand() {
     tareButton.textContent = "TARING...";
 
     const ts = Date.now();
-    database.ref('commands/tare').set({
+    // FIX: corrected path from 'commands/tare' to 'bed_1/commands/tare'
+    database.ref('bed_1/commands/tare').set({
         command: "TARE",
         status: "pending",
         timestamp: ts
@@ -470,7 +515,8 @@ function sendTareCommand() {
         tareStatus.style.display = 'block';
         tareStatus.style.color = '#3498db';
 
-        const tareStatusRef = database.ref('commands/tare/status');
+        // FIX: corrected path from 'commands/tare/status' to 'bed_1/commands/tare/status'
+        const tareStatusRef = database.ref('bed_1/commands/tare/status');
         const listener = tareStatusRef.on('value', (snapshot) => {
             if (snapshot.val() === 'completed') {
                 handleTareCompletion(tareButton, tareStatus, listener);
@@ -497,7 +543,8 @@ function handleTareCompletion(tareButton, tareStatus, listener) {
     tareStatus.style.color = '#27ae60';
     
     if (listener) {
-        database.ref('commands/tare/status').off('value', listener);
+        // FIX: corrected path from 'commands/tare/status' to 'bed_1/commands/tare/status'
+        database.ref('bed_1/commands/tare/status').off('value', listener);
     }
     
     setTimeout(() => {
